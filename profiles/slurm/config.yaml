@@ -1,0 +1,23 @@
+# profiles/slurm/config.yaml — SLURM + Apptainer (HPC sites: BioQuant, IGBMC/IFB)
+# Usage: snakemake --profile profiles/slurm --configfile config/config.yaml
+executor: slurm
+jobs: 50
+latency-wait: 120
+rerun-incomplete: true
+printshellcmds: true
+rerun-triggers: "mtime"
+
+# Apptainer/Singularity only (Docker is a build source).
+software-deployment-method:
+  - apptainer
+apptainer-args: "--bind /path/to/project-storage"
+
+slurm-logdir: "logs/slurm"
+slurm-keep-successful-logs: true
+
+default-resources:
+  - mem_mb=8000
+  - runtime=240
+  - slurm_partition=single
+  # bq-storage is a Kerberos mount: run `kinit -r 7d` and wrap long runs in
+  # `krenew -K 60 -- snakemake ...` (see the RNA-Seq/Hi-C pipeline notes).

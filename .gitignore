@@ -1,0 +1,37 @@
+#=============================================================================#
+# pRCC-RNA-Seq — keep the repo to the PIPELINE only.
+# Everything below is large and/or regenerable; never commit it.
+#=============================================================================#
+
+# GDC reference bundle (~59 GB) — rebuild with: bash resources/get_gdc_references.sh resources/gdc
+resources/gdc/
+
+# Apptainer/Singularity images (~1.4 GB) — rebuild with: bash containers/pull_images.sh
+containers/sif/
+
+# Pipeline outputs (~271 GB for the Corley benchmark)
+results/
+results_smoke/
+Corley_Benchmark/results/
+Corley_Benchmark/results_smoke/
+
+# Raw / test sequencing data (never in git)
+Corley_Benchmark/data_smoke/
+*.fastq
+*.fastq.gz
+*.fq.gz
+*.bam
+*.bai
+*.sif
+
+# Snakemake state, logs, scratch
+.snakemake/
+logs/
+*.log
+tmp/
+
+# Python / editor cruft
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store

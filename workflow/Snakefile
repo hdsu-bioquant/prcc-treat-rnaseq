@@ -1,0 +1,26 @@
+#==============================================================================#
+#  RNA-Seq-pRCC — unified, GDC-aligned RNA-seq pipeline for multi-site pRCC      #
+#                                                                              #
+#  Standardized to the NCI GDC mRNA Analysis pipeline (Data Release 32+):       #
+#    GRCh38.d1.vd1 + GENCODE v36 + STAR 2.7.5c two-pass + STAR GeneCounts.      #
+#  Assay-aware: full-length poly-A (PE) and Lexogen QuantSeq 3' (SE + UMI).     #
+#                                                                              #
+#  Run:  snakemake -n --configfile config/config.yaml            # dry-run     #
+#        snakemake --profile profiles/slurm    --configfile config/config.yaml #
+#        snakemake --profile profiles/local    --configfile config/config.yaml #
+#==============================================================================#
+configfile: "config/config.yaml"
+
+include: "rules/common.smk"
+include: "rules/references.smk"
+include: "rules/qc.smk"
+include: "rules/align.smk"
+include: "rules/quantify.smk"
+include: "rules/fusion.smk"
+include: "rules/te_ase.smk"
+include: "rules/de.smk"
+include: "rules/cross_assay.smk"
+
+rule all:
+    input:
+        all_outputs

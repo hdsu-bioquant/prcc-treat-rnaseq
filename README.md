@@ -1,4 +1,9 @@
+
 # RNA-Seq-pRCC pipeline — User guide
+
+HDSU University Heidelberg 2026
+RNA-Seq pipeline for the pRCC-TREAT consortium
+Prof. Dr. Carl Herrmann, Dr. Jan-Eric Bökenkamp, Robert Schwarz, B.Sc.
 
 ## Executive Summary
 
@@ -24,6 +29,26 @@ renal-cell carcinoma (pRCC) harmonization effort (**pRCC-TREAT**)
              harmonized raw-count matrix  +  unified MultiQC
 ```
 > The pipeline is on GitHub: **https://github.com/hdsu-bioquant/pRCC-RNA-Seq**.
+> The pipeline runs anywhere that provides **Conda + Snakemake + Apptainer/Singularity** — an HPC cluster with a scheduler (e.g., SLURM) or a single workstation.
+> It does not depend on any particular site, filesystem, or authentication system.
+
+## Table of contents
+
+0. Initial Setup
+1. Session Setup
+2. Sample Sheet construction
+3. Pipeline configuration
+4. Pipeline execution
+5. Outputs & Interpretation
+6. Optional modules
+7. Reproducibility — containers and provenance
+8. References
+
+---
+
+## 0. Initial Setup
+
+You only need this section the first time you ever use the pipeline. Subsequent sessions skip to §1.
 
 ### 0.1 Requirements
 
@@ -163,6 +188,29 @@ The sample sheet (`config/samples.tsv`) is **tab-separated WITH a header row**. 
 sample   assay   fq1   fq2   patient   batch   strandedness   [condition]
 ```
 
+| Column | Meaning |
+|---|---|
+| `sample` | Unique library ID (becomes the output folder name) |
+| `assay` | `full_length_pe` **or** `quantseq_3prime_se` — this is the **switch** that routes the workflow |
+| `fq1` | Absolute path to R1 FASTQ (the single-end read) - both `.fastq.gz` / `.fq.gz`) or plain `.fastq` work|
+| `fq2` | Absolute path to R2 FASTQ for paired-end; `-` (or empty) for single-end - both `.fastq.gz` / `.fq.gz`) or plain `.fastq` work |
+| `patient` | Subject/donor ID (pairs samples across protocols or conditions) |
+| `batch` | Sequencing batch / site (can be used as a covariate for differential expression analysis) |
+| `strandedness` | `unstranded` \| `forward` \| `reverse` (GDC headline = `unstranded`) |
+| `condition` | *(optional)* the DE factor (e.g., `tumor`/`normal`) — only needed if you run differential expression analysis |
+
+**Examples:**
+
+```
+sample         assay               fq1                     fq2                     patient  batch  strandedness  condition
+FL_tumor_01    full_length_pe      /abs/.../S1_R1.fq.gz    /abs/.../S1_R2.fq.gz    P001     b1     unstranded    tumor
+FL_normal_01   full_length_pe      /abs/.../S2_R1.fq.gz    /abs/.../S2_R2.fq.gz    P001     b1     unstranded    normal
+QS_tumor_01    quantseq_3prime_se  /abs/.../Q1.fq.gz       -                       P101     b2     forward       tumor
+QS_normal_01   quantseq_3prime_se  /abs/.../Q2.fq.gz       -                       P101     b2     forward       normal
+```
+
+---
+
 
 ## 3. Pipeline configuration
 
@@ -171,48 +219,64 @@ Everything is driven by `config/config.yaml`.
 ### 3.1 Main settings
 
 ```yaml
-samples: config/samples.tsv            
-results: results                       
-tmpdir:  results/tmp                  
+samples: config/samples.tsv            # sample sheet (§2), absolute or relative to the pipeline root
+results: results                       # output destination
+tmpdir:  results/tmp                   # STAR scratch
 
 reference:
-  dir: resources/gdc                   
-  download_references: true            
+  dir: resources/gdc                   # where the GDC files are located / are fetched to (§0.5)
+  download_references: true            # true = Snakemake fetches + MD5-checks them; false = you pre-download
   genome_fasta: GRCh38.d1.vd1.fa
   gtf:          gencode.v36.annotation.gtf
   star_index:   star-2.7.5c_GRCh38.d1.vd1_gencode.v36
-  sjdb_overhang: 100                   
+  sjdb_overhang: 100                   # GDC builds the shipped index with sjdbOverhang 100
 ```
 
 ### 3.2 Assay branch settings
 
 ```yaml
 full_length:
-  trim_adapters:    false              
-  count_column:     unstranded         
-  compute_fpkm_tpm: true               
+  trim_adapters:    false              # GDC does NO trimming (STAR soft-clips). true = enable fastp
+  count_column:     unstranded         # column used for the cohort matrix (unstranded = GDC/scheme choice)
+  compute_fpkm_tpm: true               # emit GDC FPKM/FPKM-UQ/TPM (full parity). false = normalization strictly downstream
 
 quantseq:
-  has_umi:      true                   
-  umi_pattern:  "NNNNNN"               
-  strandedness: forward                
-  bbduk_polyA:  true                  
+  has_umi:      true                   # true = Lexogen-style UMI: extract UMI + emit the UMI-dedup secondary
+  umi_pattern:  "NNNNNN"               # 6 bp UMI at the 5' of Read 1 (used only when has_umi: true)
+  strandedness: forward                # strand for the UMI-dedup HTSeq secondary (QuantSeq FWD is truly forward)
+  bbduk_polyA:  true                   # polyA + adapter right-trim (BBDuk)
 ```
 
+> The **primary output** is always **STAR raw gene counts (unstranded)** for both branches. The QuantSeq
+> primary is counted on UMI-extracted-but-**non-deduplicated** reads (uniform read basis with full-length
+> and TCGA); the UMI-dedup path is a **secondary** (§6.2).
 
+| | Full-length (`full_length_pe`) | QuantSeq 3′ (`quantseq_3prime_se`) |
+|---|---|---|
+| Trim | *(optional)* fastp — off by default | umi_tools extract → BBDuk polyA/adapter *(forced)* |
+| Align | STAR 2-pass GDC params, **PE** | STAR 2-pass GDC params, **SE** |
+| **Primary counts** | STAR GeneCounts (unstranded) | STAR GeneCounts (unstranded), **non-dedup** (dedup is optional, see §6.2) |
+| Normalization | *(optional)* FPKM/FPKM-UQ/TPM | **none in-pipeline** (invalid for 3′-tag) |
+
+The primary matrix uses the GDC **unstranded** column for both
+protocols (for uniformity with TCGA), even though QuantSeq FWD is *truly forward-stranded*. Because the
+per-sample `star_gene_counts.tsv` also keeps the `stranded_first` (forward) and `stranded_second` (reverse)
+columns, the assay-correct QuantSeq forward count information is preserved.
+
+If a QuantSeq run has no UMIs, set `quantseq.has_umi: false`: the UMI-extract and
+UMI-dedup steps are skipped and only the STAR-GeneCounts primary output is produced.
 
 ### 3.3 Tunable parameters
 
 ```yaml
 star:
   threads: 8
-  gdc_params: >-                       # the VERBATIM GDC DR32+ STAR recipe — do NOT edit in order to preserve GDC conformity
+  gdc_params: >-                       # the VERBATIM GDC DR32+ STAR recipe — do NOT edit for GDC compliance
     --twopassMode Basic --quantMode TranscriptomeSAM GeneCounts
     --outFilterType BySJout --outFilterMultimapNmax 20 --outFilterMismatchNoverLmax 0.1
     --alignSJoverhangMin 8 --chimSegmentMin 15  [... full GDC block ...]
-```
 
----
+```
 
 ## 4. Pipeline execution
 
@@ -225,6 +289,9 @@ directory at the pipeline root, and references (§0.5) + images (§0.6) present.
 snakemake -n --configfile config/config.yaml
 ```
 
+`-n` parses the sample sheet, builds the DAG, and prints what would run — without scheduling jobs or
+pulling containers. Read the job-count summary that is printed at the bottom of the output after the command has run.
+
 ### 4.2 Launching the pipeline
 
 Depending on the **infrastructure** of your working environment, the **snakemake workflow** can be edited to use a **profile** personalised to your architecture: **HPC cluster** or **local working station** (see the steps below):
@@ -236,9 +303,16 @@ snakemake --profile profiles/slurm \
           --configfile config/config.yaml \
           --rerun-incomplete --keep-going
 ```
+- `--profile profiles/slurm` reads `profiles/slurm/config.yaml` (SLURM executor, apptainer-only deployment, `jobs: 50`, `rerun-triggers: mtime`).
+- `--rerun-incomplete` redoes any rule whose outputs have been marked as incomplete.
+- `--keep-going` — when one sample's job fails, keep scheduling the others.
 
-
-> **⚙ Adapt the SLURM profile to your cluster** — edit `profiles/slurm/config.yaml`
+> **Adapt the SLURM profile to your cluster** — edit `profiles/slurm/config.yaml`:
+> - **partition/queue:** `default-resources` sets `slurm_partition=single`. Change `single` to your cluster's partition name (and add `slurm_account=<your_account>` if your site requires an account).
+> - **container bind path:** `apptainer-args: "--bind <path>"` must point at a directory that contains your FASTQs, the references, and the results, so containers can read/write them. Set it to the parent of your data (e.g. `--bind /scratch/<you>` or several `--bind` paths).
+> - optionally tune `jobs`, `latency-wait`, and `default-resources` (`mem_mb`, `runtime`) for your queue limits.
+>
+> A non-SLURM scheduler (SGE/LSF/PBS) needs the matching `snakemake-executor-plugin-*` (§0.3) and an equivalent profile.
 
 
 **On a local workstation:**
@@ -248,6 +322,32 @@ snakemake --profile profiles/local \
           --configfile config/config.yaml \
           --rerun-incomplete --keep-going
 ```
+`profiles/local` uses `cores: 16, jobs: 16` — tune to your machine, and set its `apptainer-args` bind to your
+paths. The human STAR index needs **~30 GB RAM**, so keep concurrent STAR jobs low (e.g. one at a time on a
+96 GB box).
+
+> **Long runs:** keep the controller inside `tmux` (§1.1), or submit the Snakemake controller itself as a
+> scheduler job so it survives login-node reboots or SSH disconnects.
+
+### 4.3 Monitoring progress
+
+```bash
+squeue -u "$USER"                                             # SLURM queue (adjust for your scheduler)
+tail -f .snakemake/log/$(ls -t .snakemake/log/*.snakemake.log | head -1)   # controller log
+ls logs/slurm/                                               # per-rule SLURM logs
+```
+
+### 4.4 Run locally without a scheduler
+
+> This is good for small tests or debugging.
+
+```bash
+snakemake --cores 4 --use-singularity --configfile config/config.yaml
+```
+
+Skip `--profile profiles/slurm`. Only for small tests — STAR alignment of the human genome needs ~30 GB RAM.
+
+---
 
 ---
 
@@ -274,6 +374,23 @@ matrix/
   ├── gene_counts_matrix.tsv                          ★★ PRIMARY cohort matrix (STAR unstranded, BOTH branches)
   └── quantseq_umidedup_matrix.tsv                    SECONDARY QuantSeq UMI-dedup matrix (if has_umi)
 ```
+`matrix/gene_counts_matrix.tsv` is the **primary output** — raw counts, gene × sample, with an
+`# assay` annotation row.
+
+### 5.1 Library QC guide
+
+| Metric | Source | Expected healthy values |
+|---|---|---|
+| Uniquely mapped % | `*/Log.final.out` (in MultiQC) | full-length ≳ 90 %, QuantSeq ≳ 85 % |
+| % reads assigned to genes | STAR `N_*` rows / MultiQC | protocol-dependent |
+| TPM sum per sample | `augmented_star_gene_counts.tsv` | ≈ 1e6 (sanity check) |
+| Duplication rate | FastQC (in MultiQC) | high for QuantSeq is **expected** (3'-tag) |
+| Library size (assigned counts) | matrix column sums | full-length typically 3–4× deeper than QuantSeq |
+
+A library failing on mapping % or gene-assignment fraction usually has an upstream problem (degraded RNA,
+adapter/contamination, wrong reference) that no downstream step can fix.
+
+---
 
 ## 6. Optional modules
 
@@ -286,6 +403,10 @@ full_length:
 Output:
 `full_length/<s>/<s>.augmented_star_gene_counts.tsv`.
 
+This module reproduces GDC's `augmented_star_gene_counts`: `FPKM = RCg·1e9/(RCpc·L)`, `FPKM-UQ` (75th-percentile
+protein-coding denominator), `TPM = (RCg/L)/Σ(RCj/L)·1e6` and is **only appliable to full-length data**. 
+3′-tag data has no length bias, so FPKM/TPM are invalid for QuantSeq (CPM needs to be used downstream).
+
 ### 6.2 UMI-dedup secondary (QuantSeq)
 
 ```yaml
@@ -296,6 +417,10 @@ quantseq:
 ```
 Outputs:
 `quantseq/<s>/<s>.dedup_htseq_counts.tsv`, `matrix/quantseq_umidedup_matrix.tsv`.
+
+`umi_tools extract` moves the UMI into the read name; after alignment `umi_tools dedup` (directional method)
+collapses PCR duplicates by position + UMI.
+`htseq-count -m union` then counts the deduplicated BAM.
 
 ---
 
@@ -330,7 +455,7 @@ therefore does not trigger a full rerun.
 
 ---
 
-## References
+## 8. References
 
 ### Workflow infrastructure
 - **Snakemake.** Mölder F, *et al.* F1000Research 2021;10:33.

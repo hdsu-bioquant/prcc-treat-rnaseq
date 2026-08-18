@@ -1,13 +1,3 @@
 sample	assay	fq1	fq2	patient	batch	strandedness	condition
-FL_S1	full_length_pe	/path/to/corley_pbmc/fastq/SRR8309088_1.fastq.gz	/path/to/corley_pbmc/fastq/SRR8309088_2.fastq.gz	S1	corley	reverse	control
-FL_S2	full_length_pe	/path/to/corley_pbmc/fastq/SRR8309089_1.fastq.gz	/path/to/corley_pbmc/fastq/SRR8309089_2.fastq.gz	S2	corley	reverse	treated
-FL_S3	full_length_pe	/path/to/corley_pbmc/fastq/SRR8309090_1.fastq.gz	/path/to/corley_pbmc/fastq/SRR8309090_2.fastq.gz	S3	corley	reverse	control
-FL_S4	full_length_pe	/path/to/corley_pbmc/fastq/SRR8309091_1.fastq.gz	/path/to/corley_pbmc/fastq/SRR8309091_2.fastq.gz	S4	corley	reverse	treated
-FL_S5	full_length_pe	/path/to/corley_pbmc/fastq/SRR8309092_1.fastq.gz	/path/to/corley_pbmc/fastq/SRR8309092_2.fastq.gz	S5	corley	reverse	control
-FL_S6	full_length_pe	/path/to/corley_pbmc/fastq/SRR8309093_1.fastq.gz	/path/to/corley_pbmc/fastq/SRR8309093_2.fastq.gz	S6	corley	reverse	treated
-QS_S1	quantseq_3prime_se	/path/to/corley_pbmc/fastq/SRR8309094.fastq.gz	-	S1	corley	forward	control
-QS_S2	quantseq_3prime_se	/path/to/corley_pbmc/fastq/SRR8309095.fastq.gz	-	S2	corley	forward	treated
-QS_S3	quantseq_3prime_se	/path/to/corley_pbmc/fastq/SRR8309096.fastq.gz	-	S3	corley	forward	control
-QS_S4	quantseq_3prime_se	/path/to/corley_pbmc/fastq/SRR8309097.fastq.gz	-	S4	corley	forward	treated
-QS_S5	quantseq_3prime_se	/path/to/corley_pbmc/fastq/SRR8309098.fastq.gz	-	S5	corley	forward	control
-QS_S6	quantseq_3prime_se	/path/to/corley_pbmc/fastq/SRR8309099.fastq.gz	-	S6	corley	forward	treated
+FL_S1	full_length_pe	/path/to/pRCC-RNA-Seq/test_data/fastq/FL_S1_R1.fastq.gz	/path/to/pRCC-RNA-Seq/test_data/fastq/FL_S1_R2.fastq.gz	S1	corley	reverse
+QS_S1	quantseq_3prime_se	/path/to/pRCC-RNA-Seq/test_data/fastq/QS_S1_R1.fastq.gz	-	S1	corley	forward

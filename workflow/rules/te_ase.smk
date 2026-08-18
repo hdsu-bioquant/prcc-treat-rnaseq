@@ -14,7 +14,7 @@ rule tecount:
         project = join(RESULTS, "full_length/{sample}/te/{sample}.TEcount")
     container: IMG["tetx"]
     resources:
-        mem_mb = 16000, runtime = 240, slurm_partition = "single"
+        mem_mb = 16000, runtime = 240
     shell:
         r"""
         TEcount --sortByPos --BAM {input.bam} --GTF {input.gtf} --TE {params.te_gtf} \
@@ -36,6 +36,6 @@ rule ase_readcounter:
         vcf = config["ase_germline_vcf"]
     container: IMG["gatk"]
     resources:
-        mem_mb = 16000, runtime = 240, slurm_partition = "single"
+        mem_mb = 16000, runtime = 240
     shell:
         "gatk ASEReadCounter -R {input.fasta} -I {input.bam} -V {params.vcf} -O {output.tsv}"

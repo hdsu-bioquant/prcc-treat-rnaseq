@@ -16,7 +16,7 @@ rule fastp_fl:
     threads: 4
     container: IMG["fastp"]
     resources:
-        mem_mb = 8000, runtime = 240, slurm_partition = "single"
+        mem_mb = 8000, runtime = 240
     shell:
         "fastp -i {input.fq1} -I {input.fq2} -o {output.fq1} -O {output.fq2} "
         "--detect_adapter_for_pe -w {threads} -h {output.html} -j {output.json}"
@@ -40,7 +40,7 @@ rule star_fl:
     threads: config["star"]["threads"]
     container: IMG["star"]
     resources:
-        mem_mb = 64000, runtime = 1440, slurm_partition = "single"
+        mem_mb = 64000, runtime = 1440
     shell:
         r"""
         mkdir -p "$(dirname {params.tmp})"
@@ -61,7 +61,7 @@ rule sort_index_fl:
     threads: 4
     container: IMG["samtools"]
     resources:
-        mem_mb = 16000, runtime = 240, slurm_partition = "single"
+        mem_mb = 16000, runtime = 240
     shell:
         "samtools sort -@ {threads} -o {output.bam} {input.bam} && samtools index {output.bam}"
 
@@ -77,7 +77,7 @@ rule umi_extract_qs:
         join(RESULTS, "quantseq/{sample}/{sample}.umi_extract.log")
     container: IMG["umitools"]
     resources:
-        mem_mb = 8000, runtime = 240, slurm_partition = "single"
+        mem_mb = 8000, runtime = 240
     shell:
         "umi_tools extract --stdin {input.fq1} --bc-pattern={params.pattern} "
         "--stdout {output.fq} --log {log}"
@@ -90,7 +90,7 @@ rule bbduk_qs:
     threads: 4
     container: IMG["bbmap"]
     resources:
-        mem_mb = 8000, runtime = 240, slurm_partition = "single"
+        mem_mb = 8000, runtime = 240
     shell:
         # Lexogen QuantSeq FWD: right-trim the 3' adapter read-through + polyA.
         # BBDuk's bundled adapter file lives in the bbmap install's resources/ dir inside
@@ -120,7 +120,7 @@ rule star_qs:
     threads: config["star"]["threads"]
     container: IMG["star"]
     resources:
-        mem_mb = 64000, runtime = 1440, slurm_partition = "single"
+        mem_mb = 64000, runtime = 1440
     shell:
         r"""
         mkdir -p "$(dirname {params.tmp})"
@@ -141,7 +141,7 @@ rule sort_index_qs:
     threads: 4
     container: IMG["samtools"]
     resources:
-        mem_mb = 16000, runtime = 240, slurm_partition = "single"
+        mem_mb = 16000, runtime = 240
     shell:
         "samtools sort -@ {threads} -o {output.bam} {input.bam} && samtools index {output.bam}"
 
@@ -156,6 +156,6 @@ rule umi_dedup_qs:
         join(RESULTS, "quantseq/{sample}/{sample}.umi_dedup.log")
     container: IMG["umitools"]
     resources:
-        mem_mb = 16000, runtime = 240, slurm_partition = "single"
+        mem_mb = 16000, runtime = 240
     shell:
         "umi_tools dedup -I {input.bam} -S {output.bam} --log {log}"

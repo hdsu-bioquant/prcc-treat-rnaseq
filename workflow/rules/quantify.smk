@@ -11,7 +11,7 @@ rule star_gene_counts_fl:
         tsv = join(RESULTS, "full_length/{sample}/{sample}.star_gene_counts.tsv")
     container: IMG["py"]
     resources:
-        mem_mb = 4000, runtime = 30, slurm_partition = "single"
+        mem_mb = 4000, runtime = 30
     shell:
         "python workflow/scripts/extract_star_counts.py {input.counts} {output.tsv}"
 
@@ -23,7 +23,7 @@ rule star_gene_counts_qs:
         tsv = join(RESULTS, "quantseq/{sample}/{sample}.star_gene_counts.tsv")
     container: IMG["py"]
     resources:
-        mem_mb = 4000, runtime = 30, slurm_partition = "single"
+        mem_mb = 4000, runtime = 30
     shell:
         "python workflow/scripts/extract_star_counts.py {input.counts} {output.tsv}"
 
@@ -39,7 +39,7 @@ rule htseq_dedup_qs:
     threads: 2
     container: IMG["htseq"]
     resources:
-        mem_mb = 8000, runtime = 240, slurm_partition = "single"
+        mem_mb = 8000, runtime = 240
     shell:
         "htseq-count -f bam -r pos -s {params.strand} -t exon -i gene_id -m union "
         "--nonunique none {input.bam} {input.gtf} > {output.counts}"
@@ -55,7 +55,7 @@ rule fpkm_tpm_fl:
         col = config["full_length"]["count_column"]
     container: IMG["py"]
     resources:
-        mem_mb = 4000, runtime = 30, slurm_partition = "single"
+        mem_mb = 4000, runtime = 30
     shell:
         "python workflow/scripts/augment_star_counts.py "
         "{input.counts} {input.lengths} {params.col} {output.tsv}"
@@ -72,7 +72,7 @@ rule merge_count_matrix:
         samplesheet = config["samples"], results = RESULTS
     container: IMG["py"]
     resources:
-        mem_mb = 8000, runtime = 60, slurm_partition = "single"
+        mem_mb = 8000, runtime = 60
     shell:
         "python workflow/scripts/merge_counts.py {params.samplesheet} {params.results} {output.matrix}"
 
@@ -86,6 +86,6 @@ rule merge_umidedup_matrix:
         samplesheet = config["samples"], results = RESULTS
     container: IMG["py"]
     resources:
-        mem_mb = 8000, runtime = 60, slurm_partition = "single"
+        mem_mb = 8000, runtime = 60
     shell:
         "python workflow/scripts/merge_htseq.py {params.samplesheet} {params.results} dedup {output.matrix}"

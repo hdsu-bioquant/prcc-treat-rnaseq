@@ -14,7 +14,7 @@ rule arriba:
     threads: 4
     container: IMG["arriba"]
     resources:
-        mem_mb = 32000, runtime = 240, slurm_partition = "single"
+        mem_mb = 32000, runtime = 240
     shell:
         "arriba -x {input.bam} -g {input.gtf} -a {input.fasta} "
         "-o {output.fusions} -O {params.discarded}"
@@ -30,7 +30,7 @@ rule star_fusion:
     threads: 4
     container: IMG["starfusion"]
     resources:
-        mem_mb = 32000, runtime = 480, slurm_partition = "single"
+        mem_mb = 32000, runtime = 480
     shell:
         r"""
         STAR-Fusion --chimeric_junction {input.chim} --genome_lib_dir {params.ctat} \

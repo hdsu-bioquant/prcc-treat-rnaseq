@@ -16,7 +16,7 @@ rule fastqc:
     container: IMG["fastqc"]
     threads: 2
     resources:
-        mem_mb = 4000, runtime = 60, slurm_partition = "single"
+        mem_mb = 4000, runtime = 60
     shell:
         "mkdir -p {params.outdir} && fastqc -o {params.outdir} -t {threads} {input}"
 
@@ -32,7 +32,7 @@ rule multiqc:
         outdir = join(RESULTS, "qc")
     container: IMG["multiqc"]
     resources:
-        mem_mb = 8000, runtime = 60, slurm_partition = "single"
+        mem_mb = 8000, runtime = 60
     shell:
         "multiqc {params.scan} -o {params.outdir} -n multiqc_report.html -f"
 
@@ -56,6 +56,6 @@ rule rseqc_read_distribution:
         txt = join(RESULTS, "full_length/{sample}/qc/{sample}.rseqc.read_distribution.txt")
     container: IMG["rseqc"]
     resources:
-        mem_mb = 8000, runtime = 120, slurm_partition = "single"
+        mem_mb = 8000, runtime = 120
     shell:
         "read_distribution.py -i {input.bam} -r {input.bed} > {output.txt}"

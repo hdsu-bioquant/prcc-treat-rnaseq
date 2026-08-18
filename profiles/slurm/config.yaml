@@ -7,7 +7,7 @@ rerun-incomplete: true
 printshellcmds: true
 rerun-triggers: "mtime"
 
-# Apptainer/Singularity only (Docker is a build source).
+# Apptainer/Singularity only.
 software-deployment-method:
   - apptainer
 apptainer-args: "--bind /path/to/project-storage"
@@ -18,6 +18,6 @@ slurm-keep-successful-logs: true
 default-resources:
   - mem_mb=8000
   - runtime=240
-  - slurm_partition=single
+  - slurm_partition=batch
   # bq-storage is a Kerberos mount: run `kinit -r 7d` and wrap long runs in
   # `krenew -K 60 -- snakemake ...` (see the RNA-Seq/Hi-C pipeline notes).

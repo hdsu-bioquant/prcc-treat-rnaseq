@@ -11,12 +11,10 @@ containers/sif/
 
 # Pipeline outputs (~271 GB for the Corley benchmark)
 results/
-results_smoke/
-Corley_Benchmark/results/
-Corley_Benchmark/results_smoke/
+test_data/results/
 
 # Raw / test sequencing data (never in git)
-Corley_Benchmark/data_smoke/
+test_data/data_smoke/
 *.fastq
 *.fastq.gz
 *.fq.gz

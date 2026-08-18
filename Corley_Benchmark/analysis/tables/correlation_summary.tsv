@@ -1,6 +1,0 @@
-metric	value	description
-within_FL_mean	0.9437961375375846	mean Spearman among the 6 full-length libraries
-within_QS_mean	0.9099184824245001	mean Spearman among the 6 QuantSeq libraries
-cross_matched_mean	0.8267923637514786	mean Spearman of FL_Sx vs its own QS_Sx (6 pairs)
-cross_unmatched_mean	0.8197112848739988	mean Spearman of FL_Sx vs QS_Sy, x!=y (30 pairs)
-nn_same_protocol_frac	1.0	fraction of libraries whose nearest correlate is the SAME protocol (1.0 = protocol dominates)

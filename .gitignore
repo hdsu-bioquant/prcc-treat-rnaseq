@@ -27,6 +27,8 @@ test_data/data_smoke/
 logs/
 *.log
 tmp/
+.cache/
+.java/
 
 # Python / editor cruft
 __pycache__/

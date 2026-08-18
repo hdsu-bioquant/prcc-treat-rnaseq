@@ -102,9 +102,6 @@ def all_outputs(wc):
     if config["full_length"].get("compute_fpkm_tpm", False):
         out += expand(join(RESULTS, "full_length/{s}/{s}.augmented_star_gene_counts.tsv"), s=FL_SAMPLES)
     # SECONDARY (Branch A): 3'-restricted HTSeq gene-count matrix
-    if config["cross_assay"]["enabled"]:
-        out += expand(join(RESULTS, "full_length/{s}/{s}.3prime_htseq_counts.tsv"), s=FL_SAMPLES)
-        out += [join(RESULTS, "matrix/three_prime_restricted_matrix.tsv")]
     # optional modules (full-length only)
     if config["modules"]["rseqc"]:
         out += expand(join(RESULTS, "full_length/{s}/qc/{s}.rseqc.read_distribution.txt"), s=FL_SAMPLES)
@@ -115,7 +112,4 @@ def all_outputs(wc):
         out += expand(join(RESULTS, "full_length/{s}/te/{s}.TEcount.cntTable"), s=FL_SAMPLES)
     if config["modules"]["ase"]:
         out += expand(join(RESULTS, "full_length/{s}/ase/{s}.ASEReadCounter.tsv"), s=FL_SAMPLES)
-    # optional differential expression (downstream / outside the pipeline scheme)
-    if config["de"]["enabled"]:
-        out += expand(join(RESULTS, "de/{assay}/consensus_DE.tsv"), assay=DE_ASSAYS)
     return out

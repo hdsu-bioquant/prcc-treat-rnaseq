@@ -16,11 +16,11 @@
 #   assay        : full_length_pe | quantseq_3prime_se
 #   fq2          : path for paired-end; leave "-" (or empty) for single-end
 #   strandedness : unstranded | forward | reverse   (GDC headline = unstranded)
-samples: Corley_Benchmark/samples.tsv
+samples: test_data/samples.tsv
 
 # ---- Output / scratch ------------------------------------------------------#
-results: Corley_Benchmark/results
-tmpdir:  Corley_Benchmark/results/tmp
+results: test_data/results
+tmpdir:  test_data/results/tmp
 
 # ---- GDC reference resources (exact GDC files; see resources/get_gdc_references.sh)
 reference:
@@ -89,35 +89,6 @@ modules:
 
 # Optional CTAT lib dir for STAR-Fusion (set when modules.fusion: true)
 ctat_genome_lib: ""
-
-# ---- Differential expression (OPTIONAL, downstream; off by default) --------#
-# Not part of the GDC standard (GDC stops at counts) and not run per-sample:
-# DE consumes the harmonized RAW-count matrix and runs CENTRALLY, WITHIN each
-# assay (full-length and QuantSeq counts are never mixed in one model).
-# Consensus of DESeq2 (primary) + edgeR-QLF + limma-voom on raw counts.
-# Refs: Love et al. 2014 (DESeq2); Robinson et al. 2010 / Chen et al. 2016 (edgeR);
-#       Law et al. 2014 (limma-voom); Conesa et al. 2016 (best practices).
-de:
-  enabled: false
-  factor: condition            # column in samples.tsv to contrast (e.g. tumor vs normal)
-  reference_level: normal      # baseline level of `factor`
-  covariates: "batch"          # comma-separated extra covariates (e.g. "batch,site"); "" = none
-  assays: [full_length_pe, quantseq_3prime_se]   # run DE separately within each
-  min_count: 10                # low-count prefilter (edgeR filterByExpr-style)
-  fdr: 0.05                    # BH-adjusted significance threshold
-  lfc: 0                       # |log2FC| threshold (0 = none)
-
-# ---- Cross-assay comparability (OPTIONAL; off by default) ------------------#
-# Emits a common, length-bias-matched gene-count layer so full-length
-# and QuantSeq 3' cohorts can be compared. Full-length reads are
-# re-counted in a 3' exonic WINDOW (emulating QuantSeq 3'-tag counting) and
-# CPM-normalized; QuantSeq's existing CPM is already 3'/length-independent.
-# Result: results/cross_assay/comparable_cpm_matrix.tsv (gene x sample, CPM, assay-tagged).
-# This makes RESULTS comparable; it cannot recover full-length info QuantSeq lacks.
-# See docs/Cross_Assay_Comparability for the meta-analysis recipe and limits.
-cross_assay:
-  enabled: true
-  window_bp: 500        # 3' exonic window width for the full-length emulation of 3'-tag counting
 
 # Optional TE annotation GTF for TEcount (set when modules.te: true)
 te_gtf: ""

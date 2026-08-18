@@ -185,7 +185,7 @@ cd /path/to/pRCC-RNA-Seq
 The sample sheet (`config/samples.tsv`) is **tab-separated WITH a header row**. One row per **library**:
 
 ```
-sample   assay   fq1   fq2   patient   batch   strandedness   [condition]
+sample   assay   fq1   fq2   patient   batch   strandedness
 ```
 
 | Column | Meaning |
@@ -197,16 +197,13 @@ sample   assay   fq1   fq2   patient   batch   strandedness   [condition]
 | `patient` | Subject/donor ID (pairs samples across protocols or conditions) |
 | `batch` | Sequencing batch / site (can be used as a covariate for differential expression analysis) |
 | `strandedness` | `unstranded` \| `forward` \| `reverse` (GDC headline = `unstranded`) |
-| `condition` | *(optional)* the DE factor (e.g., `tumor`/`normal`) — only needed if you run differential expression analysis |
 
 **Examples:**
 
 ```
-sample         assay               fq1                     fq2                     patient  batch  strandedness  condition
-FL_tumor_01    full_length_pe      /abs/.../S1_R1.fq.gz    /abs/.../S1_R2.fq.gz    P001     b1     unstranded    tumor
-FL_normal_01   full_length_pe      /abs/.../S2_R1.fq.gz    /abs/.../S2_R2.fq.gz    P001     b1     unstranded    normal
-QS_tumor_01    quantseq_3prime_se  /abs/.../Q1.fq.gz       -                       P101     b2     forward       tumor
-QS_normal_01   quantseq_3prime_se  /abs/.../Q2.fq.gz       -                       P101     b2     forward       normal
+sample         assay               fq1                     fq2                     patient  batch  strandedness
+FL_01    full_length_pe      /abs/.../S1_R1.fq.gz    /abs/.../S1_R2.fq.gz    P001     b1     unstranded    
+QS_01    quantseq_3prime_se  /abs/.../Q1.fq.gz       -                       P101     b2     forward
 ```
 
 ---

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import gzip, hashlib, random, shutil, textwrap
+import gzip, hashlib, random
 
 ROOT = Path(__file__).resolve().parents[2]
 TEST = ROOT / 'tests' / 'synthetic'
@@ -319,130 +319,41 @@ modules:
 '''
 (TEST/'config.yaml').write_text(config)
 
-# Reproducibility notes.
-(TEST/'README.md').write_text(textwrap.dedent('''\
-# Synthetic smoke-test fixture
 
-This directory contains a deliberately tiny, fully synthetic RNA-seq fixture for the
-pRCC-TREAT pipeline. It is intended to live in Git and to run quickly at every development
-iteration/CI run. It is **not** intended to test biological realism or GDC-reference
-compatibility; those belong in `tests/real/`.
+# ---------------------------------------------------------------------------
+# Checksums
+# ---------------------------------------------------------------------------
+# The checksum manifest fingerprints only the canonical synthetic test fixture:
+# config, sample sheet, FASTQs, miniature reference, and golden expected TSVs.
+# Documentation and test-running code are deliberately excluded.
+CHECKSUM_FILES = [
+    TEST / 'config.yaml',
+    TEST / 'samples.tsv',
 
-## Why a miniature reference is included
+    DATA / 'FL_noUMI_R1.fastq.gz',
+    DATA / 'FL_noUMI_R2.fastq.gz',
+    DATA / 'FL_UMI_R1.fastq.gz',
+    DATA / 'FL_UMI_R2.fastq.gz',
+    DATA / 'QS_noUMI_R1.fastq.gz',
+    DATA / 'QS_UMI_R1.fastq.gz',
 
-The synthetic reads are generated against `reference/synthetic.fa` and
-`reference/synthetic.gtf`. This makes exact expected gene counts known in advance and
-avoids requiring the ~25-GB GDC STAR index for every smoke test. The real-data suite will
-continue to test the genuine GRCh38.d1.vd1/GENCODE v36 path.
+    REF / 'synthetic.fa',
+    REF / 'synthetic.gtf',
 
-The reference contains three non-overlapping protein-coding test genes:
+    EXPECTED / 'expected_summary.tsv',
+    EXPECTED / 'gene_lengths.tsv',
+    EXPECTED / 'raw_gene_counts.tsv',
+    EXPECTED / 'read_manifest.tsv',
+    EXPECTED / 'umi_dedup_gene_counts.tsv',
+]
 
-- `SYN_GENE_A` / `SYN_A`: plus strand, two exons
-- `SYN_GENE_B` / `SYN_B`: minus strand, two exons
-- `SYN_GENE_C` / `SYN_C`: plus strand, one exon
-
-Some full-length fragments cross A/B splice junctions, so the test exercises spliced STAR
-alignment rather than only contiguous genomic mapping.
-
-## Four route-covering libraries
-
-| sample | layout | assay | UMI | purpose |
-|---|---|---|---|---|
-| `FL_noUMI` | PE | full length | no | baseline FL path + splice alignment |
-| `FL_UMI` | PE | full length | 6 nt at R1 start | proves UMI logic is not coupled to QS |
-| `QS_noUMI` | SE | 3' | no | QuantSeq trimming/alignment path |
-| `QS_UMI` | SE | 3' | 6 nt at R1 start | Lexogen-like UMI extraction + dedup |
-
-The UMI fixtures deliberately contain all three cases required to test deduplication:
-
-1. same mapping position + same UMI -> PCR duplicates should collapse;
-2. same mapping position + different UMI -> distinct molecules should remain;
-3. same UMI + different mapping position -> distinct molecules should remain.
-
-QuantSeq reads additionally carry a terminal poly(A) segment. Each QS sample contains one
-unmappable read and one deliberately over-trimmed read that should fail `minlength=20`.
-
-## Exact expectations
-
-- `expected/gene_lengths.tsv`: expected union-exon gene lengths from the miniature GTF.
-- `expected/raw_gene_counts.tsv`: expected STAR **unstranded raw** gene counts.
-- `expected/umi_dedup_gene_counts.tsv`: expected molecule-level counts after UMI dedup.
-- `expected/expected_summary.tsv`: expected read/fragment totals, trimming loss, and unmapped controls.
-- `expected/read_manifest.tsv`: read-level blueprint for diagnosing failed assertions.
-
-Do not use whole-file checksums for every pipeline output. Canonical count tables can be
-compared exactly; BAM/log/HTML outputs should be checked structurally or by selected parsed
-metrics because metadata/order/timestamps can legitimately differ.
-
-## Running the smoke test
-
-From the repository root, run the workflow with the synthetic configuration using the
-same Snakemake/container runtime used for the production pipeline. For example, with
-Apptainer enabled:
-
-```bash
-snakemake --snakefile workflow/Snakefile \\
-  --configfile tests/synthetic/config.yaml \\
-  --cores 2 --software-deployment-method apptainer
-```
-
-Then validate the canonical numerical outputs:
-
-```bash
-python tests/synthetic/validate_results.py
-```
-
-The validator requires exact agreement for the raw gene-count and UMI molecule-count
-matrices and also checks that MultiQC was produced.
-
-## Regeneration
-
-Run `python tests/synthetic/generate_synthetic_data.py` from the repository root. Gzipped
-FASTQs are written deterministically (`mtime=0`). `checksums.sha256` records the committed
-fixture bytes.
-'''))
-
-(REF/'README.md').write_text(textwrap.dedent('''\
-# Miniature synthetic reference
-
-This reference is an engineering fixture, not a biological genome. It is generated with a
-fixed seed and contains three annotated genes. Its purpose is to make alignment/counting
-expectations exact and to permit a very small STAR index for smoke tests.
-
-For STAR genome generation, use `--genomeSAindexNbases 4` and the test configuration's
-`sjdb_overhang`. The production GDC reference/index remains unchanged.
-'''))
-
-(EXPECTED/'README.md').write_text(textwrap.dedent('''\
-# Expected outputs
-
-`raw_gene_counts.tsv` and `umi_dedup_gene_counts.tsv` are the main golden numerical
-outputs. They should be compared by parsed table content rather than by relying on the
-formatting of upstream STAR/HTSeq files.
-
-The molecule counts assume exact-coordinate UMI-aware deduplication with UMIs extracted
-from the first six bases of R1. Deliberately distinct UMIs at the same coordinate have
-large Hamming distances, so adjacency-based UMI-tools methods should not merge them.
-'''))
-
-# Store this exact generator in the fixture itself, with a portable ROOT derived from file.
-generator_src = Path(__file__).read_text()
-# Make the in-repo generator portable by replacing fixed root/setup with repo-relative root.
-portable = generator_src.replace("ROOT = Path('/path/to/pRCC-RNA-Seq')\nTEST = ROOT / 'tests' / 'synthetic'", "ROOT = Path(__file__).resolve().parents[2]\nTEST = ROOT / 'tests' / 'synthetic'")
-# Avoid self-reading from /mnt/data when run inside repo: embed a no-op replacement for generator source section.
-portable = portable.replace("generator_src = Path(__file__).read_text()", "generator_src = Path(__file__).read_text()")
-(TEST/'generate_synthetic_data.py').write_text(portable)
-(TEST/'generate_synthetic_data.py').chmod(0o755)
-
-# Checksums for stable fixture files (exclude checksums itself and any results directory).
-files = []
-for p in sorted(TEST.rglob('*')):
-    if p.is_file() and p.name != 'checksums.sha256' and 'results' not in p.parts:
-        files.append(p)
-with open(TEST/'checksums.sha256','w') as fh:
-    for p in files:
-        h=hashlib.sha256(p.read_bytes()).hexdigest()
-        fh.write(f'{h}  {p.relative_to(ROOT)}\n')
+checksum_path = TEST / 'checksums.sha256'
+with checksum_path.open('w') as fh:
+    for p in CHECKSUM_FILES:
+        if not p.is_file():
+            raise FileNotFoundError(f'Cannot checksum missing fixture file: {p}')
+        digest = hashlib.sha256(p.read_bytes()).hexdigest()
+        fh.write(f'{digest}  {p.relative_to(ROOT)}\n')
 
 # Validate gzip FASTQs and lengths/counts.
 def read_fastq(path):
@@ -469,6 +380,7 @@ assert {len(s) for _,s in read_fastq(DATA/'FL_noUMI_R1.fastq.gz')} == {100}
 assert {len(s) for _,s in read_fastq(DATA/'FL_UMI_R1.fastq.gz')} == {100}
 
 print('Synthetic test fixture built successfully at', TEST)
+print(f'Checksum manifest written for {len(CHECKSUM_FILES)} canonical fixture files: {checksum_path}')
 print('FASTQ sizes:')
 for p in sorted(DATA.glob('*.fastq.gz')):
     print(f'  {p.name}: {p.stat().st_size} bytes')

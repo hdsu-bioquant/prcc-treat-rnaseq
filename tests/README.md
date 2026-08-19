@@ -1,49 +1,134 @@
-# Corley_Benchmark — testing RNA-Seq-pRCC on Corley et al. 2019
+# Synthetic smoke-test fixture
 
-Corley et al. 2019 (*Sci Rep* 9:18895, GEO **GSE123523** / SRA **PRJNA509074**) is the
-matched benchmark for the harmonization: **6 PBMC samples (3 control, 3 Poly(I:C)),
-each prepared with BOTH Illumina TruSeq (full-length) AND Lexogen QuantSeq 3′** → 12
-libraries. Because the *same biology* was measured with both protocols, it is the right
-dataset to test whether full-length and QuantSeq outputs can be integrated.
+This directory contains a deliberately tiny, fully synthetic RNA-seq fixture for the
+pRCC-TREAT pipeline. It is intended to live in Git and to run quickly at every development
+iteration and at partner sites. It is **not** intended to test biological realism or
+GDC-reference compatibility; those belong in `tests/real/`.
 
-## Matched design (the key to the sample sheet)
-GEO titles `Rseq_Sx` (TruSeq) and `Qseq_Sx` (QuantSeq) share the index `Sx` = the **same
-biological sample**. So `patient = S1..S6` links each TruSeq ↔ QuantSeq pair; condition is
-fixed per sample (S1/S3/S5 = control, S2/S4/S6 = Poly(I:C)).
+## Why a miniature reference is included
 
-| patient | condition | full-length (TruSeq, PE 150) | QuantSeq (3′ SE 75) |
-|---|---|---|---|
-| S1 | control  | FL_S1 = SRR8309088 | QS_S1 = SRR8309094 |
-| S2 | treated  | FL_S2 = SRR8309089 | QS_S2 = SRR8309095 |
-| S3 | control  | FL_S3 = SRR8309090 | QS_S3 = SRR8309096 |
-| S4 | treated  | FL_S4 = SRR8309091 | QS_S4 = SRR8309097 |
-| S5 | control  | FL_S5 = SRR8309092 | QS_S5 = SRR8309098 |
-| S6 | treated  | FL_S6 = SRR8309093 | QS_S6 = SRR8309099 |
+The synthetic reads are generated against `reference/synthetic.fa` and
+`reference/synthetic.gtf`. This makes exact expected gene counts known in advance and
+avoids requiring the production GDC STAR index for every smoke test. The real-data suite
+will continue to test the genuine GRCh38/GENCODE path.
 
-Data: FASTQs at `/path/to/corley_pbmc/fastq/` (already extracted). Corley QuantSeq is **FWD, no UMI** → `has_umi: false`.
+The reference contains three non-overlapping protein-coding test genes:
 
-## Files here
-- `samples.tsv` — the 12-sample matched sheet (absolute FASTQ paths into project 40).
-- `config_corley.yaml` — pipeline config; reuses the GDC references in `RNA-Seq-pRCC/resources/gdc`; `has_umi:false`; `cross_assay.enabled:true` (produces the 3′-restricted full-length matrix, the core benchmark comparison). Results → `Corley_Benchmark/results`.
+- `SYN_GENE_A` / `SYN_A`: plus strand, two exons
+- `SYN_GENE_B` / `SYN_B`: minus strand, two exons
+- `SYN_GENE_C` / `SYN_C`: plus strand, one exon
 
-## Run (from the RNA-Seq-pRCC working dir, references reused)
+Some full-length fragments cross A/B splice junctions, so the test exercises spliced STAR
+alignment rather than only contiguous genomic mapping.
+
+## Four route-covering libraries
+
+| sample | layout | assay | UMI | purpose |
+|---|---|---|---|---|
+| `FL_noUMI` | PE | full length | no | baseline FL path + splice alignment |
+| `FL_UMI` | PE | full length | 6 nt at R1 start | proves UMI logic is not coupled to QS |
+| `QS_noUMI` | SE | 3' | no | QuantSeq trimming/alignment path |
+| `QS_UMI` | SE | 3' | 6 nt at R1 start | Lexogen-like UMI extraction + dedup |
+
+The UMI fixtures deliberately contain all three cases required to test deduplication:
+
+1. same mapping position + same UMI -> PCR duplicates should collapse;
+2. same mapping position + different UMI -> distinct molecules should remain;
+3. same UMI + different mapping position -> distinct molecules should remain.
+
+QuantSeq reads additionally carry a terminal poly(A) segment. Each QS sample contains one
+unmappable read and one deliberately over-trimmed read that should fail `minlength=20`.
+
+## Exact expectations
+
+- `expected/gene_lengths.tsv`: expected union-exon gene lengths from the miniature GTF.
+- `expected/raw_gene_counts.tsv`: expected STAR **unstranded raw** gene counts.
+- `expected/umi_dedup_gene_counts.tsv`: expected molecule-level counts after UMI dedup.
+- `expected/expected_summary.tsv`: expected read/fragment totals, trimming loss, and unmapped controls.
+- `expected/read_manifest.tsv`: read-level blueprint for diagnosing failed assertions.
+
+Do not use whole-file checksums for every pipeline output. Canonical count tables can be
+compared exactly; BAM/log/HTML outputs should be checked structurally or by selected parsed
+metrics because metadata, ordering, compression, and timestamps can legitimately differ.
+
+## What is tracked in Git
+
+The synthetic FASTQs, miniature FASTA/GTF, sample sheet, configuration, expected tables,
+generator, validator, and `run_test.sh` are source-controlled test fixtures.
+
+The following are generated locally and should **not** be tracked:
+
+- `results/`
+- `reference/star_index/`
+- `logs/`
+
+The STAR index is intentionally rebuilt for each smoke-test run. This ensures that index
+generation is itself tested and avoids committing a derived STAR-version-dependent artifact.
+
+## Running the smoke test
+
+From the repository root, run:
+
 ```bash
-conda activate snakemake-9.19.0
-module load system/singularity
-kinit -r 7d
-cd /path/to/pRCC-RNA-Seq
-snakemake -n --configfile Corley_Benchmark/config_corley.yaml          # dry-run (59 jobs)
-snakemake --profile profiles/slurm --configfile Corley_Benchmark/config_corley.yaml \
-          --keep-going 2>&1 | tee Corley_Benchmark/run.log
+bash tests/synthetic/run_test.sh
 ```
-This is full-depth (6 PE ~92M-read + 6 SE ~30M-read STAR runs) → a real cluster job.
-For a quick smoke-test first, subsample the FASTQs (e.g. first ~2M reads) into a local
-`data/` and point `samples.tsv` there.
 
-## Outputs (under `Corley_Benchmark/results/`)
-- `full_length/*/*.star_gene_counts.tsv`, `quantseq/*/*.star_gene_counts.tsv` — raw STAR counts (unstranded + stranded diagnostics)
-- `matrix/gene_counts_matrix.tsv` — cohort matrix (STAR unstranded, all 12)
-- `matrix/three_prime_restricted_matrix.tsv` — full-length reads counted in the 3′ window (to compare against QuantSeq)
-- `qc/multiqc_report.html`
+The script resolves the repository root from its own location, so it can also be invoked
+from another working directory as long as you provide a valid path to `run_test.sh`.
 
-Interpretation guidance is in `RNA-Seq-pRCC/docs/Pipeline_and_Corley_Explained.md`.
+`run_test.sh` performs a clean end-to-end test:
+
+1. records basic provenance (date, host, Git commit/state, Snakemake/Python/container runtime versions);
+2. verifies the committed fixture against `checksums.sha256`;
+3. removes any previous `tests/synthetic/results/` directory;
+4. removes and rebuilds `tests/synthetic/reference/star_index/`;
+5. runs Snakemake with `tests/synthetic/config.yaml` using Apptainer;
+6. runs `validate_results.py` and requires exact agreement with the golden raw-count and
+   UMI-deduplicated molecule-count matrices, plus a MultiQC report.
+
+A successful run ends with:
+
+```text
+Synthetic smoke test PASSED.
+```
+
+### Local run logs
+
+Every invocation writes the complete terminal output (stdout and stderr) to a timestamped
+file while still displaying it interactively:
+
+```text
+tests/synthetic/logs/run_test_YYYYMMDD_HHMMSS.log
+```
+
+The `logs/` directory is local and Git-ignored. These files are intended for troubleshooting
+and can be shared with the pipeline maintainers when a partner installation fails.
+
+**Note:** execution logs can contain host names, usernames, filesystem paths, project names,
+and other local infrastructure information emitted by Snakemake or external tools. Review a
+log before posting it publicly or attaching it to a public GitHub issue.
+
+## Manual debugging
+
+If necessary, the two main steps can also be run manually from the repository root:
+
+```bash
+snakemake   --snakefile workflow/Snakefile   --configfile tests/synthetic/config.yaml   --cores 2   --software-deployment-method apptainer   --printshellcmds
+
+python tests/synthetic/validate_results.py
+```
+
+For a true clean smoke test, remove both `tests/synthetic/results/` and
+`tests/synthetic/reference/star_index/` first; `run_test.sh` does this automatically.
+
+## Regeneration
+
+Run:
+
+```bash
+python tests/synthetic/generate_synthetic_data.py
+```
+
+from the repository root. Gzipped FASTQs are written deterministically (`mtime=0`).
+`checksums.sha256` records the committed fixture bytes and excludes generated `results/`,
+`reference/star_index/`, and `logs/` content.

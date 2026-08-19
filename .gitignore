@@ -24,6 +24,9 @@ containers/sif/
 tests/synthetic/results/
 tests/synthetic/reference/star_index/
 
+# Local synthetic-test execution logs
+tests/synthetic/logs/
+
 # Real sequencing test data are obtained separately, not stored in Git
 tests/real/data/
 tests/real/results/

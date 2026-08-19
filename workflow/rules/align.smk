@@ -1,13 +1,30 @@
 # align.smk — STAR (GDC recipe) for both assay branches
-# Full-length poly-A (PE): optional fastp -> STAR 2-pass (GDC params) -> sort
-# QuantSeq 3' (SE+UMI): umi_tools extract -> BBDuk polyA/adapter -> STAR SE -> umi_tools dedup
+# UMI extraction is library-level and may precede either branch.
 
 # ---------------------------- full-length branch ----------------------------#
-rule fastp_fl:
-    # OFF by default (GDC does not trim). Enabled via full_length.trim_adapters: true
+rule umi_extract_fl:
     input:
         fq1 = raw_fq1,
         fq2 = raw_fq2
+    output:
+        fq1 = join(RESULTS, "full_length/{sample}/umi/{sample}_R1.umi.fastq.gz"),
+        fq2 = join(RESULTS, "full_length/{sample}/umi/{sample}_R2.umi.fastq.gz")
+    params:
+        pattern = lambda wc: sample_umi_pattern(wc.sample)
+    log:
+        join(RESULTS, "full_length/{sample}/umi/{sample}.umi_extract.log")
+    container: IMG["umitools"]
+    resources:
+        mem_mb = 8000, runtime = 240
+    shell:
+        "umi_tools extract --stdin {input.fq1} --bc-pattern={params.pattern} "
+        "--stdout {output.fq1} --read2-in {input.fq2} --read2-out {output.fq2} "
+        "--ignore-read-pair-suffixes --log {log}"
+
+rule fastp_fl:
+    # OFF by default (GDC does not trim). If enabled, UMI extraction happens first.
+    input:
+        unpack(fl_pretrim_input)
     output:
         fq1  = join(RESULTS, "full_length/{sample}/trim/{sample}_R1.trim.fastq.gz"),
         fq2  = join(RESULTS, "full_length/{sample}/trim/{sample}_R2.trim.fastq.gz"),
@@ -65,6 +82,20 @@ rule sort_index_fl:
     shell:
         "samtools sort -@ {threads} -o {output.bam} {input.bam} && samtools index {output.bam}"
 
+rule umi_dedup_fl:
+    input:
+        bam = join(RESULTS, "full_length/{sample}/{sample}.Aligned.sortedByCoord.bam"),
+        bai = join(RESULTS, "full_length/{sample}/{sample}.Aligned.sortedByCoord.bam.bai")
+    output:
+        bam = join(RESULTS, "full_length/{sample}/{sample}.dedup.bam")
+    log:
+        join(RESULTS, "full_length/{sample}/{sample}.umi_dedup.log")
+    container: IMG["umitools"]
+    resources:
+        mem_mb = 16000, runtime = 240
+    shell:
+        "umi_tools dedup --paired -I {input.bam} -S {output.bam} --log {log}"
+
 # ------------------------------ QuantSeq branch -----------------------------#
 rule umi_extract_qs:
     input:
@@ -72,7 +103,7 @@ rule umi_extract_qs:
     output:
         fq = join(RESULTS, "quantseq/{sample}/{sample}.umi.fastq.gz")
     params:
-        pattern = config["quantseq"]["umi_pattern"]
+        pattern = lambda wc: sample_umi_pattern(wc.sample)
     log:
         join(RESULTS, "quantseq/{sample}/{sample}.umi_extract.log")
     container: IMG["umitools"]
@@ -84,7 +115,7 @@ rule umi_extract_qs:
 
 rule bbduk_qs:
     input:
-        fq = qs_trim_input          # umi-extracted R1 (has_umi) or raw R1 (no UMI)
+        fq = qs_trim_input
     output:
         fq = join(RESULTS, "quantseq/{sample}/{sample}.trim.fastq.gz")
     threads: 4
@@ -92,9 +123,7 @@ rule bbduk_qs:
     resources:
         mem_mb = 8000, runtime = 240
     shell:
-        # Lexogen QuantSeq FWD: right-trim the 3' adapter read-through + polyA.
-        # BBDuk's bundled adapter file lives in the bbmap install's resources/ dir inside
-        # the container (NOT the CWD), so resolve it; polyA is trimmed via a literal poly-A kmer.
+        # Lexogen QuantSeq FWD: right-trim 3' adapter read-through + poly(A).
         r"""
         RES=$(ls -d /usr/local/opt/bbmap*/resources 2>/dev/null | head -1)
         bbduk.sh in={input.fq} out={output.fq} \
@@ -146,7 +175,6 @@ rule sort_index_qs:
         "samtools sort -@ {threads} -o {output.bam} {input.bam} && samtools index {output.bam}"
 
 rule umi_dedup_qs:
-    # UMI-aware deduplication (coordinate-only dedup is WRONG for UMI data).
     input:
         bam = join(RESULTS, "quantseq/{sample}/{sample}.Aligned.sortedByCoord.bam"),
         bai = join(RESULTS, "quantseq/{sample}/{sample}.Aligned.sortedByCoord.bam.bai")

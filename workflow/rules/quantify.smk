@@ -1,7 +1,6 @@
 # quantify.smk — pRCC-TREAT primary + secondary quantification
-# PRIMARY (both branches): STAR --quantMode GeneCounts -> raw counts (unstranded primary,
-#          stranded columns kept for diagnostics). No dedup, no normalization here.
-# SECONDARY: QuantSeq UMI-dedup -> HTSeq-count; (optional, off) full-length FPKM/FPKM-UQ/TPM.
+# PRIMARY (both branches): STAR --quantMode GeneCounts -> raw counts.
+# SECONDARY: UMI-deduplicated molecule-level HTSeq counts for any UMI-bearing library.
 
 # ---- PRIMARY: STAR gene counts, both branches -------------------------------#
 rule star_gene_counts_fl:
@@ -16,7 +15,6 @@ rule star_gene_counts_fl:
         "python workflow/scripts/extract_star_counts.py {input.counts} {output.tsv}"
 
 rule star_gene_counts_qs:
-    # QuantSeq PRIMARY = STAR GeneCounts on UMI-extracted (if any) but NON-deduplicated reads.
     input:
         counts = join(RESULTS, "quantseq/{sample}/{sample}.ReadsPerGene.out.tab")
     output:
@@ -27,7 +25,23 @@ rule star_gene_counts_qs:
     shell:
         "python workflow/scripts/extract_star_counts.py {input.counts} {output.tsv}"
 
-# ---- SECONDARY: QuantSeq UMI-deduplicated HTSeq counts ----------------------#
+# ---- SECONDARY: UMI-deduplicated HTSeq counts ------------------------------#
+rule htseq_dedup_fl:
+    input:
+        bam = join(RESULTS, "full_length/{sample}/{sample}.dedup.bam"),
+        gtf = GTF
+    output:
+        counts = join(RESULTS, "full_length/{sample}/{sample}.dedup_htseq_counts.tsv")
+    params:
+        strand = htseq_strand
+    threads: 2
+    container: IMG["htseq"]
+    resources:
+        mem_mb = 8000, runtime = 240
+    shell:
+        "htseq-count -f bam -r pos -s {params.strand} -t exon -i gene_id -m union "
+        "--nonunique none {input.bam} {input.gtf} > {output.counts}"
+
 rule htseq_dedup_qs:
     input:
         bam = join(RESULTS, "quantseq/{sample}/{sample}.dedup.bam"),
@@ -35,7 +49,7 @@ rule htseq_dedup_qs:
     output:
         counts = join(RESULTS, "quantseq/{sample}/{sample}.dedup_htseq_counts.tsv")
     params:
-        strand = QS_HTSEQ_STRAND      # QuantSeq FWD -> "yes" (forward)
+        strand = htseq_strand
     threads: 2
     container: IMG["htseq"]
     resources:
@@ -77,11 +91,12 @@ rule merge_count_matrix:
         "python workflow/scripts/merge_counts.py {params.samplesheet} {params.results} {output.matrix}"
 
 rule merge_umidedup_matrix:
-    # SECONDARY cohort matrix: QuantSeq UMI-deduplicated HTSeq counts.
+    # SECONDARY cohort matrix: all UMI-bearing libraries, regardless of assay.
     input:
-        qs = expand(join(RESULTS, "quantseq/{s}/{s}.dedup_htseq_counts.tsv"), s=QS_SAMPLES)
+        fl = expand(join(RESULTS, "full_length/{s}/{s}.dedup_htseq_counts.tsv"), s=FL_UMI_SAMPLES),
+        qs = expand(join(RESULTS, "quantseq/{s}/{s}.dedup_htseq_counts.tsv"), s=QS_UMI_SAMPLES)
     output:
-        matrix = join(RESULTS, "matrix/quantseq_umidedup_matrix.tsv")
+        matrix = join(RESULTS, "matrix/umi_dedup_matrix.tsv")
     params:
         samplesheet = config["samples"], results = RESULTS
     container: IMG["py"]

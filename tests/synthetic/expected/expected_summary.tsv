@@ -1,0 +1,5 @@
+sample	input_fragments_or_reads	expected_after_trim	expected_raw_gene_assigned	expected_umi_molecules	expected_unmapped	expected_trim_dropped
+FL_noUMI	13	13	12	-	1	0
+FL_UMI	16	16	15	11	1	0
+QS_noUMI	14	13	12	-	1	1
+QS_UMI	17	16	15	11	1	1

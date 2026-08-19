@@ -1,3 +1,0 @@
-sample	assay	fq1	fq2	patient	batch	strandedness	condition
-FL_S1	full_length_pe	/path/to/pRCC-RNA-Seq/test_data/fastq/FL_S1_R1.fastq.gz	/path/to/pRCC-RNA-Seq/test_data/fastq/FL_S1_R2.fastq.gz	S1	corley	reverse
-QS_S1	quantseq_3prime_se	/path/to/pRCC-RNA-Seq/test_data/fastq/QS_S1_R1.fastq.gz	-	S1	corley	forward

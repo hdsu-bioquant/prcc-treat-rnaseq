@@ -1,0 +1,13 @@
+##description: pRCC-TREAT deterministic miniature RNA-seq test annotation
+##seed: 20250124
+chrSynthetic	pRCC-TREAT	gene	1001	1900	.	+	.	gene_id "SYN_GENE_A"; gene_type "protein_coding"; gene_name "SYN_A";
+chrSynthetic	pRCC-TREAT	transcript	1001	1900	.	+	.	gene_id "SYN_GENE_A"; gene_type "protein_coding"; gene_name "SYN_A"; transcript_id "SYN_TX_A.1"; transcript_type "protein_coding"; transcript_name "SYN_A-001";
+chrSynthetic	pRCC-TREAT	exon	1001	1300	.	+	.	gene_id "SYN_GENE_A"; gene_type "protein_coding"; gene_name "SYN_A"; transcript_id "SYN_TX_A.1"; transcript_type "protein_coding"; transcript_name "SYN_A-001"; exon_number "1"; exon_id "SYN_TX_A.1.E1";
+chrSynthetic	pRCC-TREAT	exon	1601	1900	.	+	.	gene_id "SYN_GENE_A"; gene_type "protein_coding"; gene_name "SYN_A"; transcript_id "SYN_TX_A.1"; transcript_type "protein_coding"; transcript_name "SYN_A-001"; exon_number "2"; exon_id "SYN_TX_A.1.E2";
+chrSynthetic	pRCC-TREAT	gene	3501	4400	.	-	.	gene_id "SYN_GENE_B"; gene_type "protein_coding"; gene_name "SYN_B";
+chrSynthetic	pRCC-TREAT	transcript	3501	4400	.	-	.	gene_id "SYN_GENE_B"; gene_type "protein_coding"; gene_name "SYN_B"; transcript_id "SYN_TX_B.1"; transcript_type "protein_coding"; transcript_name "SYN_B-001";
+chrSynthetic	pRCC-TREAT	exon	4101	4400	.	-	.	gene_id "SYN_GENE_B"; gene_type "protein_coding"; gene_name "SYN_B"; transcript_id "SYN_TX_B.1"; transcript_type "protein_coding"; transcript_name "SYN_B-001"; exon_number "1"; exon_id "SYN_TX_B.1.E1";
+chrSynthetic	pRCC-TREAT	exon	3501	3800	.	-	.	gene_id "SYN_GENE_B"; gene_type "protein_coding"; gene_name "SYN_B"; transcript_id "SYN_TX_B.1"; transcript_type "protein_coding"; transcript_name "SYN_B-001"; exon_number "2"; exon_id "SYN_TX_B.1.E2";
+chrSynthetic	pRCC-TREAT	gene	6001	6500	.	+	.	gene_id "SYN_GENE_C"; gene_type "protein_coding"; gene_name "SYN_C";
+chrSynthetic	pRCC-TREAT	transcript	6001	6500	.	+	.	gene_id "SYN_GENE_C"; gene_type "protein_coding"; gene_name "SYN_C"; transcript_id "SYN_TX_C.1"; transcript_type "protein_coding"; transcript_name "SYN_C-001";
+chrSynthetic	pRCC-TREAT	exon	6001	6500	.	+	.	gene_id "SYN_GENE_C"; gene_type "protein_coding"; gene_name "SYN_C"; transcript_id "SYN_TX_C.1"; transcript_type "protein_coding"; transcript_name "SYN_C-001"; exon_number "1"; exon_id "SYN_TX_C.1.E1";

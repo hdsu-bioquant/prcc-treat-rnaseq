@@ -25,7 +25,7 @@ rule star_fusion:
     output:
         pred = join(RESULTS, "full_length/{sample}/fusion/{sample}.starfusion.predictions.tsv")
     params:
-        ctat   = config["ctat_genome_lib"],   # external CTAT lib (not a tracked input)
+        ctat   = config.get("ctat_genome_lib", ""),   # external CTAT lib (not a tracked input)
         outdir = join(RESULTS, "full_length/{sample}/fusion/starfusion")
     threads: 4
     container: IMG["starfusion"]

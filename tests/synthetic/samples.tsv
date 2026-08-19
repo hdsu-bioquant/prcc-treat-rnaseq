@@ -1,0 +1,6 @@
+sample	assay	fq1	fq2	patient	batch	strandedness	condition	has_umi	umi_pattern	umi_location
+FL_noUMI	full_length_pe	tests/synthetic/data/FL_noUMI_R1.fastq.gz	tests/synthetic/data/FL_noUMI_R2.fastq.gz	SYN_FL1	synthetic	forward	test	false	-	-
+FL_UMI	full_length_pe	tests/synthetic/data/FL_UMI_R1.fastq.gz	tests/synthetic/data/FL_UMI_R2.fastq.gz	SYN_FL2	synthetic	forward	test	true	NNNNNN	read1_start
+QS_noUMI	quantseq_3prime_se	tests/synthetic/data/QS_noUMI_R1.fastq.gz	-	SYN_QS1	synthetic	forward	test	false	-	-
+QS_UMI	quantseq_3prime_se	tests/synthetic/data/QS_UMI_R1.fastq.gz	-	SYN_QS2	synthetic	forward	test	true	NNNNNN	read1_start
+

@@ -10,7 +10,7 @@ rule tecount:
     output:
         tab = join(RESULTS, "full_length/{sample}/te/{sample}.TEcount.cntTable")
     params:
-        te_gtf  = config["te_gtf"],
+        te_gtf  = config.get("te_gtf", ""),
         project = join(RESULTS, "full_length/{sample}/te/{sample}.TEcount")
     container: IMG["tetx"]
     resources:
@@ -33,7 +33,7 @@ rule ase_readcounter:
     output:
         tsv = join(RESULTS, "full_length/{sample}/ase/{sample}.ASEReadCounter.tsv")
     params:
-        vcf = config["ase_germline_vcf"]
+        vcf = config.get("ase_germline_vcf", "")
     container: IMG["gatk"]
     resources:
         mem_mb = 16000, runtime = 240

@@ -1,0 +1,45 @@
+# pRCC-TREAT synthetic smoke test (target configuration)
+samples: tests/synthetic/samples.tsv
+results: tests/synthetic/results
+tmpdir: tests/synthetic/results/tmp
+
+reference:
+  mode: local
+  dir: tests/synthetic/reference
+  download_references: false
+  genome_fasta: synthetic.fa
+  gtf: synthetic.gtf
+  star_index: star_index
+  build_star_index: true
+  sjdb_overhang: 100
+  # Tiny genomes need a smaller STAR suffix-array seed than the default.
+  genome_sa_index_nbases: 4
+
+star:
+  threads: 2
+  gdc_params: >-
+    --alignIntronMax 1000000 --alignIntronMin 20 --alignMatesGapMax 1000000
+    --alignSJDBoverhangMin 1 --alignSJoverhangMin 8 --alignSoftClipAtReferenceEnds Yes
+    --chimJunctionOverhangMin 15 --chimMainSegmentMultNmax 1
+    --chimOutType Junctions SeparateSAMold WithinBAM SoftClip --chimSegmentMin 15
+    --genomeLoad NoSharedMemory --limitSjdbInsertNsj 1200000
+    --outFilterIntronMotifs None --outFilterMatchNminOverLread 0.33
+    --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.1
+    --outFilterMultimapNmax 20 --outFilterScoreMinOverLread 0.33
+    --outFilterType BySJout --outSAMattributes NH HI AS nM NM ch
+    --outSAMstrandField intronMotif --outSAMtype BAM Unsorted --outSAMunmapped Within
+    --quantMode TranscriptomeSAM GeneCounts --twopassMode Basic
+
+full_length:
+  trim_adapters: false
+  count_column: unstranded
+  compute_fpkm_tpm: true
+
+quantseq:
+  bbduk_polyA: true
+
+modules:
+  fusion: false
+  te: false
+  ase: false
+  rseqc: false

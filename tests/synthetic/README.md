@@ -2,15 +2,15 @@
 
 This directory contains a deliberately tiny, fully synthetic RNA-seq fixture for the
 pRCC-TREAT pipeline. It is intended to live in Git and to run quickly at every development
-iteration/CI run. It is **not** intended to test biological realism or GDC-reference
-compatibility; those belong in `tests/real/`.
+iteration and at partner sites. It is **not** intended to test biological realism or
+GDC-reference compatibility; those belong in `tests/real/`.
 
 ## Why a miniature reference is included
 
 The synthetic reads are generated against `reference/synthetic.fa` and
 `reference/synthetic.gtf`. This makes exact expected gene counts known in advance and
-avoids requiring the ~25-GB GDC STAR index for every smoke test. The real-data suite will
-continue to test the genuine GRCh38.d1.vd1/GENCODE v36 path.
+avoids requiring the production GDC STAR index for every smoke test. The real-data suite
+will continue to test the genuine GRCh38/GENCODE path.
 
 The reference contains three non-overlapping protein-coding test genes:
 
@@ -49,31 +49,86 @@ unmappable read and one deliberately over-trimmed read that should fail `minleng
 
 Do not use whole-file checksums for every pipeline output. Canonical count tables can be
 compared exactly; BAM/log/HTML outputs should be checked structurally or by selected parsed
-metrics because metadata/order/timestamps can legitimately differ.
+metrics because metadata, ordering, compression, and timestamps can legitimately differ.
+
+## What is tracked in Git
+
+The synthetic FASTQs, miniature FASTA/GTF, sample sheet, configuration, expected tables,
+generator, validator, and `run_test.sh` are source-controlled test fixtures.
+
+The following are generated locally and should **not** be tracked:
+
+- `results/`
+- `reference/star_index/`
+- `logs/`
+
+The STAR index is intentionally rebuilt for each smoke-test run. This ensures that index
+generation is itself tested and avoids committing a derived STAR-version-dependent artifact.
 
 ## Running the smoke test
 
-From the repository root, run the workflow with the synthetic configuration using the
-same Snakemake/container runtime used for the production pipeline. For example, with
-Apptainer enabled:
+From the repository root, run:
 
 ```bash
-snakemake --snakefile workflow/Snakefile \
-  --configfile tests/synthetic/config.yaml \
-  --cores 2 --software-deployment-method apptainer
+bash tests/synthetic/run_test.sh
 ```
 
-Then validate the canonical numerical outputs:
+The script resolves the repository root from its own location, so it can also be invoked
+from another working directory as long as you provide a valid path to `run_test.sh`.
+
+`run_test.sh` performs a clean end-to-end test:
+
+1. records basic provenance (date, host, Git commit/state, Snakemake/Python/container runtime versions);
+2. verifies the committed fixture against `checksums.sha256`;
+3. removes any previous `tests/synthetic/results/` directory;
+4. removes and rebuilds `tests/synthetic/reference/star_index/`;
+5. runs Snakemake with `tests/synthetic/config.yaml` using Apptainer;
+6. runs `validate_results.py` and requires exact agreement with the golden raw-count and
+   UMI-deduplicated molecule-count matrices, plus a MultiQC report.
+
+A successful run ends with:
+
+```text
+Synthetic smoke test PASSED.
+```
+
+### Local run logs
+
+Every invocation writes the complete terminal output (stdout and stderr) to a timestamped
+file while still displaying it interactively:
+
+```text
+tests/synthetic/logs/run_test_YYYYMMDD_HHMMSS.log
+```
+
+The `logs/` directory is local and Git-ignored. These files are intended for troubleshooting
+and can be shared with the pipeline maintainers when a partner installation fails.
+
+**Note:** execution logs can contain host names, usernames, filesystem paths, project names,
+and other local infrastructure information emitted by Snakemake or external tools. Review a
+log before posting it publicly or attaching it to a public GitHub issue.
+
+## Manual debugging
+
+If necessary, the two main steps can also be run manually from the repository root:
 
 ```bash
+snakemake   --snakefile workflow/Snakefile   --configfile tests/synthetic/config.yaml   --cores 2   --software-deployment-method apptainer   --printshellcmds
+
 python tests/synthetic/validate_results.py
 ```
 
-The validator requires exact agreement for the raw gene-count and UMI molecule-count
-matrices and also checks that MultiQC was produced.
+For a true clean smoke test, remove both `tests/synthetic/results/` and
+`tests/synthetic/reference/star_index/` first; `run_test.sh` does this automatically.
 
 ## Regeneration
 
-Run `python tests/synthetic/generate_synthetic_data.py` from the repository root. Gzipped
-FASTQs are written deterministically (`mtime=0`). `checksums.sha256` records the committed
-fixture bytes.
+Run:
+
+```bash
+python tests/synthetic/generate_synthetic_data.py
+```
+
+from the repository root. Gzipped FASTQs are written deterministically (`mtime=0`).
+`checksums.sha256` records the committed fixture bytes and excludes generated `results/`,
+`reference/star_index/`, and `logs/` content.

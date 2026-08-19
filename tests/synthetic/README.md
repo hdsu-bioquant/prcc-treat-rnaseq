@@ -87,8 +87,7 @@ file while still displaying it interactively:
 tests/synthetic/logs/run_test_YYYYMMDD_HHMMSS.log
 ```
 
-The `logs/` directory is local and Git-ignored. These files are intended for troubleshooting
-and can be shared with the pipeline maintainers when a partner installation fails.
+These files are intended for sharing with the pipeline maintainers when troubleshooting or reporting on successful pipeline installation/application at partners sites.
 
 **Note:** execution logs can contain host names, usernames, filesystem paths, project names,
 and other local infrastructure information emitted by Snakemake or external tools. Review a

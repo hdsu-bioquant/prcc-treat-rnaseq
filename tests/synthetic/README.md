@@ -51,20 +51,6 @@ Do not use whole-file checksums for every pipeline output. Canonical count table
 compared exactly; BAM/log/HTML outputs should be checked structurally or by selected parsed
 metrics because metadata, ordering, compression, and timestamps can legitimately differ.
 
-## What is tracked in Git
-
-The synthetic FASTQs, miniature FASTA/GTF, sample sheet, configuration, expected tables,
-generator, validator, and `run_test.sh` are source-controlled test fixtures.
-
-The following are generated locally and should **not** be tracked:
-
-- `results/`
-- `reference/star_index/`
-- `logs/`
-
-The STAR index is intentionally rebuilt for each smoke-test run. This ensures that index
-generation is itself tested and avoids committing a derived STAR-version-dependent artifact.
-
 ## Running the smoke test
 
 From the repository root, run:

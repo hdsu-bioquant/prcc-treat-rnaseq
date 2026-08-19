@@ -9,18 +9,24 @@ resources/gdc/
 # Apptainer/Singularity images (~1.4 GB) — rebuild with: bash containers/pull_images.sh
 containers/sif/
 
-# Pipeline outputs (~271 GB for the Corley benchmark)
-results/
-test_data/results/
-
 # Raw / test sequencing data (never in git)
-test_data/data_smoke/
 *.fastq
 *.fastq.gz
 *.fq.gz
 *.bam
 *.bai
 *.sif
+
+# Exception: Synthetic fixtures ARE intentionally version controlled
+!tests/synthetic/data/*.fastq.gz
+
+# Synthetic generated artifacts are not
+tests/synthetic/results/
+tests/synthetic/reference/star_index/
+
+# Real sequencing test data are obtained separately, not stored in Git
+tests/real/data/
+tests/real/results/
 
 # Snakemake state, logs, scratch
 .snakemake/

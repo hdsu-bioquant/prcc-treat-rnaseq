@@ -117,8 +117,8 @@ def qs_read_umi(gid, start, umi, bio_len=60, polya=9):
     return umi + seq + 'A'*polya
 
 read_manifest = []
-def add_manifest(sample, rid, gid, umi, group, exp_aligned=True, exp_trimmed=True):
-    read_manifest.append((sample,rid,gid,umi,group,int(exp_aligned),int(exp_trimmed)))
+def add_manifest(library_id, rid, gid, umi, group, exp_aligned=True, exp_trimmed=True):
+    read_manifest.append((library_id,rid,gid,umi,group,int(exp_aligned),int(exp_trimmed)))
 
 # ---------------------------------------------------------------------------
 # 1) Full-length paired-end, no UMI: 5/4/3 fragments over A/B/C, plus one
@@ -241,7 +241,7 @@ with open(EXPECTED/'umi_dedup_gene_counts.tsv','w') as fh:
 
 # Read-level blueprint for debugging failures.
 with open(EXPECTED/'read_manifest.tsv','w') as fh:
-    fh.write('sample\tread_id\tgene_id\tumi\tmolecule_group\texpected_to_align\texpected_to_survive_trim\n')
+    fh.write('library_id\tread_id\tgene_id\tumi\tmolecule_group\texpected_to_align\texpected_to_survive_trim\n')
     for row in read_manifest:
         fh.write('\t'.join(map(str,row))+'\n')
 
@@ -253,18 +253,19 @@ summary = [
  ('QS_UMI', len(qsu), len(qsu)-1, 15, 11, 1, 1),
 ]
 with open(EXPECTED/'expected_summary.tsv','w') as fh:
-    fh.write('sample\tinput_fragments_or_reads\texpected_after_trim\texpected_raw_gene_assigned\texpected_umi_molecules\texpected_unmapped\texpected_trim_dropped\n')
+    fh.write('library_id\tinput_fragments_or_reads\texpected_after_trim\texpected_raw_gene_assigned\texpected_umi_molecules\texpected_unmapped\texpected_trim_dropped\n')
     for row in summary:
         fh.write('\t'.join(map(str,row))+'\n')
 
-# Future-facing sample sheet: only adds UMI metadata to the present schema.
+# Library-centric sample sheet. ``batch`` is an intentionally unused extra metadata
+# column, demonstrating that user metadata beyond the required technical schema is allowed.
 with open(TEST/'samples.tsv','w') as fh:
-    fh.write('sample\tassay\tfq1\tfq2\tpatient\tbatch\tstrandedness\thas_umi\tumi_pattern\tumi_location\n')
+    fh.write('library_id\tsample_id\tassay\tlayout\tstrandedness\tfq1\tfq2\thas_umi\tumi_pattern\tumi_location\tbatch\n')
     rows=[
-      ('FL_noUMI','full_length_pe','tests/synthetic/data/FL_noUMI_R1.fastq.gz','tests/synthetic/data/FL_noUMI_R2.fastq.gz','SYN_FL1','synthetic','forward','false','-','-'),
-      ('FL_UMI','full_length_pe','tests/synthetic/data/FL_UMI_R1.fastq.gz','tests/synthetic/data/FL_UMI_R2.fastq.gz','SYN_FL2','synthetic','forward','true','NNNNNN','read1_start'),
-      ('QS_noUMI','quantseq_3prime_se','tests/synthetic/data/QS_noUMI_R1.fastq.gz','-','SYN_QS1','synthetic','forward','false','-','-'),
-      ('QS_UMI','quantseq_3prime_se','tests/synthetic/data/QS_UMI_R1.fastq.gz','-','SYN_QS2','synthetic','forward','true','NNNNNN','read1_start'),
+      ('FL_noUMI','SYN_SAMPLE_1','full_length','paired','forward','tests/synthetic/data/FL_noUMI_R1.fastq.gz','tests/synthetic/data/FL_noUMI_R2.fastq.gz','false','-','-','synthetic'),
+      ('FL_UMI','SYN_SAMPLE_2','full_length','paired','forward','tests/synthetic/data/FL_UMI_R1.fastq.gz','tests/synthetic/data/FL_UMI_R2.fastq.gz','true','NNNNNN','read1_start','synthetic'),
+      ('QS_noUMI','SYN_SAMPLE_1','quantseq','single','forward','tests/synthetic/data/QS_noUMI_R1.fastq.gz','-','false','-','-','synthetic'),
+      ('QS_UMI','SYN_SAMPLE_2','quantseq','single','forward','tests/synthetic/data/QS_UMI_R1.fastq.gz','-','true','NNNNNN','read1_start','synthetic'),
     ]
     for row in rows: fh.write('\t'.join(row)+'\n')
 

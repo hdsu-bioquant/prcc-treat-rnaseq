@@ -1,7 +1,7 @@
-# common.smk — config parsing, sample model, container registry, final outputs
+# common.smk — config parsing, library model, container registry, final outputs
 import os
 import re
-import pandas as pd
+import sys
 from os.path import join
 
 # ---- paths -----------------------------------------------------------------#
@@ -14,92 +14,85 @@ STAR_IDX  = join(REFDIR, config["reference"]["star_index"])     # directory
 STAR_IDX_DONE = join(STAR_IDX, "SAindex")                        # build/extract marker
 GENE_LENGTHS  = join(REFDIR, "gene_lengths.tsv")                  # only for OPTIONAL FPKM/TPM
 
+# ---- sequencing-library sample sheet --------------------------------------#
+# One row = one sequencing library. library_id drives workflow/output naming;
+# sample_id identifies the underlying biological sample and may repeat.
+_SCRIPT_DIR = os.path.abspath(os.path.join(workflow.basedir, "scripts"))
+if _SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPT_DIR)
+from sample_sheet import load_and_validate_samples
 
-# ---- sample sheet ----------------------------------------------------------#
-samples = pd.read_csv(config["samples"], sep="\t", dtype=str).fillna("-")
+samples = load_and_validate_samples(config["samples"])
 
-# UMI metadata now belongs to each library/sample. For backwards compatibility
-# with existing consortium sheets, missing columns inherit the old QuantSeq-wide
-# settings; new sheets should provide has_umi/umi_pattern/umi_location explicitly.
-qcfg = config.get("quantseq", {})
-if "has_umi" not in samples.columns:
-    samples["has_umi"] = "false"
-    if qcfg.get("has_umi", False):
-        samples.loc[samples["assay"] == "quantseq_3prime_se", "has_umi"] = "true"
-if "umi_pattern" not in samples.columns:
-    samples["umi_pattern"] = "-"
-    old_pattern = str(qcfg.get("umi_pattern", "-"))
-    umi_qs = (samples["assay"] == "quantseq_3prime_se") & samples["has_umi"].astype(str).str.lower().isin(["true", "1", "yes", "y"])
-    samples.loc[umi_qs, "umi_pattern"] = old_pattern
-if "umi_location" not in samples.columns:
-    samples["umi_location"] = "-"
-    has_any_umi = samples["has_umi"].astype(str).str.lower().isin(["true", "1", "yes", "y"])
-    samples.loc[has_any_umi, "umi_location"] = "read1_start"
+LIBRARIES = list(samples["library_id"])
+FL_LIBRARIES = list(samples[samples["assay"] == "full_length"]["library_id"])
+QS_LIBRARIES = list(samples[samples["assay"] == "quantseq"]["library_id"])
 
-samples = samples.set_index("sample", drop=False)
-SAMPLES    = list(samples["sample"])
-FL_SAMPLES = list(samples[samples["assay"] == "full_length_pe"]["sample"])
-QS_SAMPLES = list(samples[samples["assay"] == "quantseq_3prime_se"]["sample"])
 
-_TRUE = {"true", "1", "yes", "y"}
-def sample_has_umi(sample):
-    return str(samples.loc[sample, "has_umi"]).strip().lower() in _TRUE
+def library_has_umi(library):
+    return samples.loc[library, "has_umi"] == "true"
 
-def sample_umi_pattern(sample):
-    return str(samples.loc[sample, "umi_pattern"]).strip()
 
-def sample_umi_location(sample):
-    return str(samples.loc[sample, "umi_location"]).strip()
+def library_umi_pattern(library):
+    return samples.loc[library, "umi_pattern"]
 
-UMI_SAMPLES    = [s for s in SAMPLES if sample_has_umi(s)]
-FL_UMI_SAMPLES = [s for s in FL_SAMPLES if sample_has_umi(s)]
-QS_UMI_SAMPLES = [s for s in QS_SAMPLES if sample_has_umi(s)]
 
-# This first generic UMI implementation supports the consortium's current UMI
-# structure: a fixed-length UMI at the start of R1. Other locations can be added
-# explicitly later rather than silently interpreting them incorrectly.
-for s in UMI_SAMPLES:
-    if sample_umi_pattern(s) in {"", "-"}:
-        raise ValueError("Sample %s has has_umi=true but no umi_pattern" % s)
-    if sample_umi_location(s) != "read1_start":
-        raise ValueError("Sample %s uses unsupported umi_location=%s (currently supported: read1_start)" %
-                         (s, sample_umi_location(s)))
+def library_umi_location(library):
+    return samples.loc[library, "umi_location"]
+
+
+def biological_sample_id(library):
+    return samples.loc[library, "sample_id"]
+
+
+UMI_LIBRARIES = [lib for lib in LIBRARIES if library_has_umi(lib)]
+FL_UMI_LIBRARIES = [lib for lib in FL_LIBRARIES if library_has_umi(lib)]
+QS_UMI_LIBRARIES = [lib for lib in QS_LIBRARIES if library_has_umi(lib)]
 
 wildcard_constraints:
-    sample = "|".join([re.escape(s) for s in SAMPLES]) if SAMPLES else "x"
+    library = "|".join([re.escape(lib) for lib in LIBRARIES]) if LIBRARIES else "x"
 
-def raw_fq1(wc):  return samples.loc[wc.sample, "fq1"]
-def raw_fq2(wc):  return samples.loc[wc.sample, "fq2"]
+
+def raw_fq1(wc):
+    return samples.loc[wc.library, "fq1"]
+
+
+def raw_fq2(wc):
+    return samples.loc[wc.library, "fq2"]
+
 
 # UMI extraction is independent of assay. QuantSeq then continues into its
 # assay-specific poly(A)/adapter trimming, while full-length continues directly
 # (or through fastp if that option is enabled).
 def qs_trim_input(wc):
-    if sample_has_umi(wc.sample):
-        return join(RESULTS, "quantseq", wc.sample, wc.sample + ".umi.fastq.gz")
-    return samples.loc[wc.sample, "fq1"]
+    if library_has_umi(wc.library):
+        return join(RESULTS, "quantseq", wc.library, wc.library + ".umi.fastq.gz")
+    return samples.loc[wc.library, "fq1"]
+
 
 def fl_pretrim_input(wc):
-    if sample_has_umi(wc.sample):
+    if library_has_umi(wc.library):
         return {
-            "fq1": join(RESULTS, "full_length", wc.sample, "umi", wc.sample + "_R1.umi.fastq.gz"),
-            "fq2": join(RESULTS, "full_length", wc.sample, "umi", wc.sample + "_R2.umi.fastq.gz"),
+            "fq1": join(RESULTS, "full_length", wc.library, "umi", wc.library + "_R1.umi.fastq.gz"),
+            "fq2": join(RESULTS, "full_length", wc.library, "umi", wc.library + "_R2.umi.fastq.gz"),
         }
-    return {"fq1": samples.loc[wc.sample, "fq1"], "fq2": samples.loc[wc.sample, "fq2"]}
+    return {"fq1": samples.loc[wc.library, "fq1"], "fq2": samples.loc[wc.library, "fq2"]}
+
 
 # Full-length STAR input: trimmed (fastp) if enabled, else UMI-extracted/raw FASTQs.
 def fl_star_input(wc):
     if config["full_length"]["trim_adapters"]:
-        return {"fq1": join(RESULTS, "full_length", wc.sample, "trim", wc.sample + "_R1.trim.fastq.gz"),
-                "fq2": join(RESULTS, "full_length", wc.sample, "trim", wc.sample + "_R2.trim.fastq.gz")}
+        return {
+            "fq1": join(RESULTS, "full_length", wc.library, "trim", wc.library + "_R1.trim.fastq.gz"),
+            "fq2": join(RESULTS, "full_length", wc.library, "trim", wc.library + "_R2.trim.fastq.gz"),
+        }
     return fl_pretrim_input(wc)
+
 
 HTSEQ_STRAND = {"forward": "yes", "reverse": "reverse", "unstranded": "no"}
 def htseq_strand(wc):
-    strand = str(samples.loc[wc.sample, "strandedness"]).strip().lower()
-    if strand not in HTSEQ_STRAND:
-        raise ValueError("Unsupported strandedness for %s: %s" % (wc.sample, strand))
-    return HTSEQ_STRAND[strand]
+    return HTSEQ_STRAND[samples.loc[wc.library, "strandedness"]]
+
 
 # ---- container registry ---------------------------------------------------#
 # Prefer a PRE-PULLED local image at containers/sif/<name>.sif (run
@@ -134,27 +127,28 @@ def all_outputs(wc):
     # references
     out += [FASTA, GTF, STAR_IDX_DONE]
     # PRIMARY (both branches): STAR raw gene counts (unstranded + stranded diagnostics)
-    out += expand(join(RESULTS, "full_length/{s}/{s}.star_gene_counts.tsv"), s=FL_SAMPLES)
-    out += expand(join(RESULTS, "quantseq/{s}/{s}.star_gene_counts.tsv"), s=QS_SAMPLES)
+    out += expand(join(RESULTS, "full_length/{lib}/{lib}.star_gene_counts.tsv"), lib=FL_LIBRARIES)
+    out += expand(join(RESULTS, "quantseq/{lib}/{lib}.star_gene_counts.tsv"), lib=QS_LIBRARIES)
     # PRIMARY: cohort raw-count matrix (STAR unstranded, both branches) + unified QC
     out += [join(RESULTS, "matrix/gene_counts_matrix.tsv"),
             join(RESULTS, "qc/multiqc_report.html")]
     # SECONDARY: UMI-deduplicated molecule-level counts, independent of assay.
-    if UMI_SAMPLES:
-        out += expand(join(RESULTS, "full_length/{s}/{s}.dedup_htseq_counts.tsv"), s=FL_UMI_SAMPLES)
-        out += expand(join(RESULTS, "quantseq/{s}/{s}.dedup_htseq_counts.tsv"), s=QS_UMI_SAMPLES)
+    if UMI_LIBRARIES:
+        out += expand(join(RESULTS, "full_length/{lib}/{lib}.dedup_htseq_counts.tsv"), lib=FL_UMI_LIBRARIES)
+        out += expand(join(RESULTS, "quantseq/{lib}/{lib}.dedup_htseq_counts.tsv"), lib=QS_UMI_LIBRARIES)
         out += [join(RESULTS, "matrix/umi_dedup_matrix.tsv")]
     # OPTIONAL GDC-style normalized outputs (FPKM/FPKM-UQ/TPM)
     if config["full_length"].get("compute_fpkm_tpm", False):
-        out += expand(join(RESULTS, "full_length/{s}/{s}.augmented_star_gene_counts.tsv"), s=FL_SAMPLES)
+        out += expand(join(RESULTS, "full_length/{lib}/{lib}.augmented_star_gene_counts.tsv"), lib=FL_LIBRARIES)
     # optional modules (full-length only)
-    if config["modules"]["rseqc"]:
-        out += expand(join(RESULTS, "full_length/{s}/qc/{s}.rseqc.read_distribution.txt"), s=FL_SAMPLES)
-    if config["modules"]["fusion"]:
-        out += expand(join(RESULTS, "full_length/{s}/fusion/{s}.arriba.fusions.tsv"), s=FL_SAMPLES)
-        out += expand(join(RESULTS, "full_length/{s}/fusion/{s}.starfusion.predictions.tsv"), s=FL_SAMPLES)
-    if config["modules"]["te"]:
-        out += expand(join(RESULTS, "full_length/{s}/te/{s}.TEcount.cntTable"), s=FL_SAMPLES)
-    if config["modules"]["ase"]:
-        out += expand(join(RESULTS, "full_length/{s}/ase/{s}.ASEReadCounter.tsv"), s=FL_SAMPLES)
+    modules = config.get("modules", {})
+    if modules.get("rseqc", False):
+        out += expand(join(RESULTS, "full_length/{lib}/qc/{lib}.rseqc.read_distribution.txt"), lib=FL_LIBRARIES)
+    if modules.get("fusion", False):
+        out += expand(join(RESULTS, "full_length/{lib}/fusion/{lib}.arriba.fusions.tsv"), lib=FL_LIBRARIES)
+        out += expand(join(RESULTS, "full_length/{lib}/fusion/{lib}.starfusion.predictions.tsv"), lib=FL_LIBRARIES)
+    if modules.get("te", False):
+        out += expand(join(RESULTS, "full_length/{lib}/te/{lib}.TEcount.cntTable"), lib=FL_LIBRARIES)
+    if modules.get("ase", False):
+        out += expand(join(RESULTS, "full_length/{lib}/ase/{lib}.ASEReadCounter.tsv"), lib=FL_LIBRARIES)
     return out

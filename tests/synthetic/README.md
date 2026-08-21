@@ -23,12 +23,19 @@ alignment rather than only contiguous genomic mapping.
 
 ## Four route-covering libraries
 
-| sample | layout | assay | UMI | purpose |
+| library_id | layout | assay | UMI | purpose |
 |---|---|---|---|---|
 | `FL_noUMI` | PE | full length | no | baseline FL path + splice alignment |
 | `FL_UMI` | PE | full length | 6 nt at R1 start | proves UMI logic is not coupled to QS |
 | `QS_noUMI` | SE | 3' | no | QuantSeq trimming/alignment path |
 | `QS_UMI` | SE | 3' | 6 nt at R1 start | Lexogen-like UMI extraction + dedup |
+
+The fixture sample sheet uses the library-centric schema now expected by the pipeline:
+`library_id`, `sample_id`, `assay`, `layout`, `strandedness`, `fq1`, `fq2`, `has_umi`,
+`umi_pattern`, and `umi_location`. The four libraries deliberately map to only two biological
+`sample_id` values, testing that multiple libraries may belong to one sample. The extra `batch`
+column is intentional: it confirms that additional consortium metadata columns are accepted
+without controlling workflow routing.
 
 The UMI fixtures deliberately contain all three cases required to test deduplication:
 
@@ -36,7 +43,7 @@ The UMI fixtures deliberately contain all three cases required to test deduplica
 2. same mapping position + different UMI -> distinct molecules should remain;
 3. same UMI + different mapping position -> distinct molecules should remain.
 
-QuantSeq reads additionally carry a terminal poly(A) segment. Each QS sample contains one
+QuantSeq reads additionally carry a terminal poly(A) segment. Each QS library contains one
 unmappable read and one deliberately over-trimmed read that should fail `minlength=20`.
 
 ## Exact expectations
@@ -64,7 +71,7 @@ from another working directory as long as you provide a valid path to `run_test.
 
 `run_test.sh` performs a clean end-to-end test:
 
-1. records basic provenance (date, host, Git commit/state, Snakemake/Python/container runtime versions);
+1. records basic run information (date, host, Snakemake/Python/container runtime versions);
 2. verifies the committed fixture against `checksums.sha256`;
 3. removes any previous `tests/synthetic/results/` directory;
 4. removes and rebuilds `tests/synthetic/reference/star_index/`;

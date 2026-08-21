@@ -182,98 +182,117 @@ cd /path/to/pRCC-RNA-Seq
 
 ## 2. Sample Sheet construction
 
-The sample sheet (`config/samples.tsv`) is **tab-separated WITH a header row**. One row per **library**:
+The sample sheet is a **tab-separated file with a header row**. One row represents one
+**sequencing library**. The run-specific config points to this file via `samples:`.
+
+Required columns:
 
 ```
-sample   assay   fq1   fq2   patient   batch   strandedness
+library_id  sample_id  assay  layout  strandedness  fq1  fq2  has_umi  umi_pattern  umi_location
 ```
 
-| Column | Meaning |
+| Column | Meaning / allowed values |
 |---|---|
-| `sample` | Unique library ID (becomes the output folder name) |
-| `assay` | `full_length_pe` **or** `quantseq_3prime_se` — this is the **switch** that routes the workflow |
-| `fq1` | Absolute path to R1 FASTQ (the single-end read) - both `.fastq.gz` / `.fq.gz`) or plain `.fastq` work|
-| `fq2` | Absolute path to R2 FASTQ for paired-end; `-` (or empty) for single-end - both `.fastq.gz` / `.fq.gz`) or plain `.fastq` work |
-| `patient` | Subject/donor ID (pairs samples across protocols or conditions) |
-| `batch` | Sequencing batch / processing site; retained for QC, provenance, and downstream harmonization |
-| `strandedness` | `unstranded` \| `forward` \| `reverse` (GDC headline = `unstranded`) |
+| `library_id` | Unique sequencing-library identifier. This is the workflow/output identifier and must be unique. |
+| `sample_id` | Biological sample identifier. It may occur in multiple rows when one biological sample has multiple libraries. |
+| `assay` | `full_length` \| `quantseq` |
+| `layout` | `paired` \| `single`. Currently implemented combinations are `full_length + paired` and `quantseq + single`. |
+| `strandedness` | `unstranded` \| `forward` \| `reverse` |
+| `fq1` | Path to R1/single-end FASTQ (`.fastq`, `.fastq.gz`, `.fq`, `.fq.gz`). |
+| `fq2` | Path to R2 for paired-end libraries; use `-` or leave empty for single-end libraries. |
+| `has_umi` | `true` \| `false`. UMI handling is a **library property**, independent of assay. |
+| `umi_pattern` | UMI-tools extraction pattern, e.g. `NNNNNN`; required when `has_umi=true`, otherwise `-`. |
+| `umi_location` | Currently `read1_start` for UMI libraries; otherwise `-`. |
 
-**Examples:**
+Additional metadata columns (for example `batch`, `site`, `patient_id`, `model_id`) are
+allowed and preserved in the loaded table, but do not currently control workflow routing.
+Formal consortium naming conventions for patient/sample/library identifiers will be defined
+separately; the pipeline currently enforces only filesystem-safe identifiers (letters,
+numbers, `.`, `_`, `-`).
+
+Example:
 
 ```
-sample         assay               fq1                     fq2                     patient  batch  strandedness
-FL_01    full_length_pe      /abs/.../S1_R1.fq.gz    /abs/.../S1_R2.fq.gz    P001     b1     unstranded    
-QS_01    quantseq_3prime_se  /abs/.../Q1.fq.gz       -                       P101     b2     forward
+library_id  sample_id  assay        layout  strandedness  fq1                    fq2                    has_umi  umi_pattern  umi_location  batch
+FL_01       S01        full_length  paired  reverse       /abs/S01_R1.fastq.gz   /abs/S01_R2.fastq.gz   false    -            -             run1
+QS_01       S01        quantseq     single  forward       /abs/S01_QS.fastq.gz   -                      true     NNNNNN       read1_start   run2
 ```
+
+The sheet is validated before the DAG is built. The pipeline fails immediately for, among
+other things, duplicate `library_id` values, missing FASTQs, invalid assay/layout/strand
+values, paired libraries without R2, inconsistent UMI fields, unsupported UMI locations,
+or accidental reuse of the same FASTQ in multiple library rows.
 
 ---
 
 
 ## 3. Pipeline configuration
 
-Everything is driven by `config/config.yaml`.
+Each analysis run supplies its own YAML configuration explicitly with `--configfile`.
+There is intentionally **no repository-wide default run configuration**: omitted run-specific
+settings should fail rather than silently inherit values from an unrelated example dataset.
+A documented `templates/` directory will be added once the user-facing schema is frozen.
 
 ### 3.1 Main settings
 
 ```yaml
-samples: config/samples.tsv            # sample sheet (§2), absolute or relative to the pipeline root
-results: results                       # output destination
-tmpdir:  results/tmp                   # STAR scratch
+samples: /path/to/run/samples.tsv       # library sheet (§2)
+results: /path/to/run/results           # output destination
+tmpdir:  /path/to/run/results/tmp       # STAR scratch
 
 reference:
-  dir: resources/gdc                   # where the GDC files are located / are fetched to (§0.5)
-  download_references: true            # true = Snakemake fetches + MD5-checks them; false = you pre-download
+  dir: resources/gdc
   genome_fasta: GRCh38.d1.vd1.fa
   gtf:          gencode.v36.annotation.gtf
   star_index:   star-2.7.5c_GRCh38.d1.vd1_gencode.v36
-  sjdb_overhang: 100                   # GDC builds the shipped index with sjdbOverhang 100
+  sjdb_overhang: 100
 ```
 
-### 3.2 Assay branch settings
+### 3.2 Assay-level settings
+
+UMI presence, UMI structure, read layout, and strandedness are **not** QuantSeq-global
+configuration switches. They are specified per library in the sample sheet.
 
 ```yaml
 full_length:
-  trim_adapters:    false              # GDC does NO trimming (STAR soft-clips). true = enable fastp
-  count_column:     unstranded         # column used for the cohort matrix (unstranded = GDC/scheme choice)
-  compute_fpkm_tpm: true               # emit GDC FPKM/FPKM-UQ/TPM (full parity). false = normalization strictly downstream
+  trim_adapters:    false
+  count_column:     unstranded
+  compute_fpkm_tpm: true
 
 quantseq:
-  has_umi:      true                   # true = Lexogen-style UMI: extract UMI + emit the UMI-dedup secondary
-  umi_pattern:  "NNNNNN"               # 6 bp UMI at the 5' of Read 1 (used only when has_umi: true)
-  strandedness: forward                # strand for the UMI-dedup HTSeq secondary (QuantSeq FWD is truly forward)
-  bbduk_polyA:  true                   # polyA + adapter right-trim (BBDuk)
+  bbduk_polyA: true
 ```
 
-> The **primary output** is always **STAR raw gene counts (unstranded)** for both branches. The QuantSeq
-> primary is counted on UMI-extracted-but-**non-deduplicated** reads (uniform read basis with full-length
-> and TCGA); the UMI-dedup path is a **secondary** (§6.2).
+The primary output is STAR raw gene counts on the non-deduplicated read basis for both
+assays. If a library has `has_umi=true`, UMI extraction happens before assay-specific
+processing and a UMI-deduplicated molecule-count layer is additionally produced.
 
-| | Full-length (`full_length_pe`) | QuantSeq 3′ (`quantseq_3prime_se`) |
+| | Full-length | QuantSeq 3′ |
 |---|---|---|
-| Trim | *(optional)* fastp — off by default | umi_tools extract → BBDuk polyA/adapter *(forced)* |
-| Align | STAR 2-pass GDC params, **PE** | STAR 2-pass GDC params, **SE** |
-| **Primary counts** | STAR GeneCounts (unstranded) | STAR GeneCounts (unstranded), **non-dedup** (dedup is optional, see §6.2) |
-| Normalization | *(optional)* FPKM/FPKM-UQ/TPM | **none in-pipeline** (invalid for 3′-tag) |
+| Current supported layout | paired-end | single-end |
+| UMI | optional, library-level | optional, library-level |
+| Trim | optional fastp; off by default | BBDuk poly(A)/adapter trim |
+| Align | STAR two-pass GDC parameters | STAR two-pass GDC parameters |
+| Primary counts | STAR GeneCounts, non-deduplicated | STAR GeneCounts, non-deduplicated |
+| Secondary UMI counts | when `has_umi=true` | when `has_umi=true` |
+| Optional normalization | FPKM/FPKM-UQ/TPM | none in pipeline |
 
-The primary matrix uses the GDC **unstranded** column for both
-protocols (for uniformity with TCGA), even though QuantSeq FWD is *truly forward-stranded*. Because the
-per-sample `star_gene_counts.tsv` also keeps the `stranded_first` (forward) and `stranded_second` (reverse)
-columns, the assay-correct QuantSeq forward count information is preserved.
+The primary cohort matrix uses the STAR **unstranded** column for both assays for uniformity
+with TCGA. Per-library STAR tables retain the stranded diagnostic columns, while the
+sample-sheet `strandedness` controls HTSeq counting of UMI-deduplicated BAMs.
 
-If a QuantSeq run has no UMIs, set `quantseq.has_umi: false`: the UMI-extract and
-UMI-dedup steps are skipped and only the STAR-GeneCounts primary output is produced.
-
-### 3.3 Tunable parameters
+### 3.3 Tunable STAR parameters
 
 ```yaml
 star:
   threads: 8
-  gdc_params: >-                       # the VERBATIM GDC DR32+ STAR recipe — do NOT edit for GDC compliance
+  gdc_params: >-
     --twopassMode Basic --quantMode TranscriptomeSAM GeneCounts
     --outFilterType BySJout --outFilterMultimapNmax 20 --outFilterMismatchNoverLmax 0.1
     --alignSJoverhangMin 8 --chimSegmentMin 15  [... full GDC block ...]
-
 ```
+
+For production GDC adherence, the canonical GDC STAR recipe should not be changed.
 
 ## 4. Pipeline execution
 
@@ -283,7 +302,7 @@ directory at the pipeline root, and references (§0.5) + images (§0.6) present.
 ### 4.1 Dry-run
 
 ```bash
-snakemake -n --configfile config/config.yaml
+snakemake -n --configfile /path/to/run/config.yaml
 ```
 
 `-n` parses the sample sheet, builds the DAG, and prints what would run — without scheduling jobs or
@@ -297,7 +316,7 @@ Depending on the **infrastructure** of your working environment, the **snakemake
 
 ```bash
 snakemake --profile profiles/slurm \
-          --configfile config/config.yaml \
+          --configfile /path/to/run/config.yaml \
           --rerun-incomplete --keep-going
 ```
 - `--profile profiles/slurm` reads `profiles/slurm/config.yaml` (SLURM executor, apptainer-only deployment, `jobs: 50`, `rerun-triggers: mtime`).
@@ -316,7 +335,7 @@ snakemake --profile profiles/slurm \
 
 ```bash
 snakemake --profile profiles/local \
-          --configfile config/config.yaml \
+          --configfile /path/to/run/config.yaml \
           --rerun-incomplete --keep-going
 ```
 `profiles/local` uses `cores: 16, jobs: 16` — tune to your machine, and set its `apptainer-args` bind to your
@@ -339,7 +358,7 @@ ls logs/slurm/                                               # per-rule SLURM lo
 > This is good for small tests or debugging.
 
 ```bash
-snakemake --cores 4 --use-singularity --configfile config/config.yaml
+snakemake --cores 4 --use-singularity --configfile /path/to/run/config.yaml
 ```
 
 Skip `--profile profiles/slurm`. Only for small tests — STAR alignment of the human genome needs ~30 GB RAM.
@@ -354,12 +373,12 @@ Under `results/`:
 
 ```
 qc/multiqc_report.html                                aggregated QC (FastQC + STAR)
-qc/fastqc/<sample>.done                               per-sample FastQC marker (+ html/zip)
+qc/fastqc/<library>.done                               per-library FastQC marker (+ html/zip)
 
 full_length/<s>/
   ├── <s>.Aligned.sortedByCoord.bam(.bai)             coord-sorted genome BAM
   ├── <s>.ReadsPerGene.out.tab                        raw STAR GeneCounts (3 strand columns)
-  ├── <s>.star_gene_counts.tsv                        ★ PRIMARY per-sample counts (cleaned)
+  ├── <s>.star_gene_counts.tsv                        ★ PRIMARY per-library counts (cleaned)
   └── <s>.augmented_star_gene_counts.tsv              FPKM / FPKM-UQ / TPM   (if compute_fpkm_tpm)
 
 quantseq/<s>/
@@ -369,10 +388,9 @@ quantseq/<s>/
 
 matrix/
   ├── gene_counts_matrix.tsv                          ★★ PRIMARY cohort matrix (STAR unstranded, BOTH branches)
-  └── quantseq_umidedup_matrix.tsv                    SECONDARY QuantSeq UMI-dedup matrix (if has_umi)
+  └── umi_dedup_matrix.tsv                         SECONDARY UMI-dedup matrix (all UMI libraries)
 ```
-`matrix/gene_counts_matrix.tsv` is the **primary output** — raw counts, gene × sample, with an
-`# assay` annotation row.
+`matrix/gene_counts_matrix.tsv` is the **primary output** — raw counts, gene × library, with `# sample_id`, `# assay`, and `# layout` annotation rows.
 
 ### 5.1 Library QC guide
 
@@ -380,7 +398,7 @@ matrix/
 |---|---|---|
 | Uniquely mapped % | `*/Log.final.out` (in MultiQC) | full-length ≳ 90 %, QuantSeq ≳ 85 % |
 | % reads assigned to genes | STAR `N_*` rows / MultiQC | protocol-dependent |
-| TPM sum per sample | `augmented_star_gene_counts.tsv` | ≈ 1e6 (sanity check) |
+| TPM sum per library | `augmented_star_gene_counts.tsv` | ≈ 1e6 (sanity check) |
 | Duplication rate | FastQC (in MultiQC) | high for QuantSeq is **expected** (3'-tag) |
 | Library size (assigned counts) | matrix column sums | full-length typically 3–4× deeper than QuantSeq |
 
@@ -404,20 +422,20 @@ This module reproduces GDC's `augmented_star_gene_counts`: `FPKM = RCg·1e9/(RCp
 protein-coding denominator), `TPM = (RCg/L)/Σ(RCj/L)·1e6` and is **only appliable to full-length data**. 
 3′-tag data has no length bias, so FPKM/TPM are invalid for QuantSeq (CPM needs to be used downstream).
 
-### 6.2 UMI-dedup secondary (QuantSeq)
+### 6.2 UMI-deduplicated secondary
 
-```yaml
-quantseq:
-  has_umi:      true
-  umi_pattern:  "NNNNNN"     # 6 bp UMI at the 5' of Read 1
-  strandedness: forward      # HTSeq -s: forward→yes | reverse→reverse | unstranded→no
+UMI handling is configured per library in the sample sheet, for example:
+
 ```
-Outputs:
-`quantseq/<s>/<s>.dedup_htseq_counts.tsv`, `matrix/quantseq_umidedup_matrix.tsv`.
+library_id  sample_id  assay        layout  strandedness  fq1       fq2       has_umi  umi_pattern  umi_location
+LIB01       S01        full_length  paired  reverse       R1.fq.gz  R2.fq.gz  true     NNNNNN       read1_start
+LIB02       S02        quantseq     single  forward       QS.fq.gz  -         true     NNNNNN       read1_start
+```
 
-`umi_tools extract` moves the UMI into the read name; after alignment `umi_tools dedup` (directional method)
-collapses PCR duplicates by position + UMI.
-`htseq-count -m union` then counts the deduplicated BAM.
+For `has_umi=true`, `umi_tools extract` moves the UMI into the read name before alignment.
+After alignment, `umi_tools dedup` collapses PCR duplicates by mapping position + UMI and
+HTSeq produces molecule-level gene counts. The secondary cohort output is
+`matrix/umi_dedup_matrix.tsv` and may contain UMI-bearing libraries from either assay.
 
 ---
 
@@ -435,7 +453,7 @@ apptainer-args: "--bind /path/that/contains/your/data/refs/results"   # set this
 |---|---|
 | `quay.io/biocontainers/star:2.7.5c--0` | STAR alignment + GeneCounts (both branches) |
 | `quay.io/biocontainers/samtools:1.19--h50ea8bc_0` | sort / index |
-| `quay.io/biocontainers/umi_tools:1.1.4--py39hf95cd2a_2` | UMI extract + dedup (QuantSeq) |
+| `quay.io/biocontainers/umi_tools:1.1.4--py39hf95cd2a_2` | UMI extract + dedup (UMI-bearing libraries) |
 | `quay.io/biocontainers/bbmap:39.06--h92535d8_0` | BBDuk polyA/adapter trim (QuantSeq) |
 | `quay.io/biocontainers/fastp:0.23.4--hadf994f_2` | optional full-length adapter trimming |
 | `quay.io/biocontainers/htseq:2.0.9--py39h918f1d6_0` | HTSeq counting (UMI-dedup secondary) |

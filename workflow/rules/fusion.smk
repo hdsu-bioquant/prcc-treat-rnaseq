@@ -4,13 +4,13 @@
 
 rule arriba:
     input:
-        bam   = join(RESULTS, "full_length/{sample}/{sample}.Aligned.sortedByCoord.bam"),
+        bam   = join(RESULTS, "full_length/{library}/{library}.Aligned.sortedByCoord.bam"),
         gtf   = GTF,
         fasta = FASTA
     output:
-        fusions = join(RESULTS, "full_length/{sample}/fusion/{sample}.arriba.fusions.tsv")
+        fusions = join(RESULTS, "full_length/{library}/fusion/{library}.arriba.fusions.tsv")
     params:
-        discarded = join(RESULTS, "full_length/{sample}/fusion/{sample}.arriba.discarded.tsv")
+        discarded = join(RESULTS, "full_length/{library}/fusion/{library}.arriba.discarded.tsv")
     threads: 4
     container: IMG["arriba"]
     resources:
@@ -21,12 +21,12 @@ rule arriba:
 
 rule star_fusion:
     input:
-        chim = join(RESULTS, "full_length/{sample}/{sample}.Chimeric.out.junction")
+        chim = join(RESULTS, "full_length/{library}/{library}.Chimeric.out.junction")
     output:
-        pred = join(RESULTS, "full_length/{sample}/fusion/{sample}.starfusion.predictions.tsv")
+        pred = join(RESULTS, "full_length/{library}/fusion/{library}.starfusion.predictions.tsv")
     params:
         ctat   = config.get("ctat_genome_lib", ""),   # external CTAT lib (not a tracked input)
-        outdir = join(RESULTS, "full_length/{sample}/fusion/starfusion")
+        outdir = join(RESULTS, "full_length/{library}/fusion/starfusion")
     threads: 4
     container: IMG["starfusion"]
     resources:

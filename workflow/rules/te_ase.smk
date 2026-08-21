@@ -5,13 +5,13 @@ rule tecount:
     # TEtranscripts/TEcount: TE-family quantification. Requires a TE annotation GTF
     # (config: te_gtf), supplied externally (TEtranscripts curated TE GTF).
     input:
-        bam = join(RESULTS, "full_length/{sample}/{sample}.Aligned.sortedByCoord.bam"),
+        bam = join(RESULTS, "full_length/{library}/{library}.Aligned.sortedByCoord.bam"),
         gtf = GTF
     output:
-        tab = join(RESULTS, "full_length/{sample}/te/{sample}.TEcount.cntTable")
+        tab = join(RESULTS, "full_length/{library}/te/{library}.TEcount.cntTable")
     params:
         te_gtf  = config.get("te_gtf", ""),
-        project = join(RESULTS, "full_length/{sample}/te/{sample}.TEcount")
+        project = join(RESULTS, "full_length/{library}/te/{library}.TEcount")
     container: IMG["tetx"]
     resources:
         mem_mb = 16000, runtime = 240
@@ -27,11 +27,11 @@ rule ase_readcounter:
     # Requires an EXTERNAL germline VCF (config: ase_germline_vcf) — germline variant
     # calling is DNA-seq/WES and is OUT OF SCOPE for this RNA-seq pipeline.
     input:
-        bam   = join(RESULTS, "full_length/{sample}/{sample}.Aligned.sortedByCoord.bam"),
-        bai   = join(RESULTS, "full_length/{sample}/{sample}.Aligned.sortedByCoord.bam.bai"),
+        bam   = join(RESULTS, "full_length/{library}/{library}.Aligned.sortedByCoord.bam"),
+        bai   = join(RESULTS, "full_length/{library}/{library}.Aligned.sortedByCoord.bam.bai"),
         fasta = FASTA
     output:
-        tsv = join(RESULTS, "full_length/{sample}/ase/{sample}.ASEReadCounter.tsv")
+        tsv = join(RESULTS, "full_length/{library}/ase/{library}.ASEReadCounter.tsv")
     params:
         vcf = config.get("ase_germline_vcf", "")
     container: IMG["gatk"]

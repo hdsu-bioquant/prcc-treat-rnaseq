@@ -12,15 +12,14 @@
 #==============================================================================#
 
 # ---- Sample sheet ----------------------------------------------------------#
-# TSV columns: sample  assay  fq1  fq2  patient  batch  strandedness
-#   assay        : full_length_pe | quantseq_3prime_se
-#   fq2          : path for paired-end; leave "-" (or empty) for single-end
-#   strandedness : unstranded | forward | reverse   (GDC headline = unstranded)
-samples: test_data/samples.tsv
+# One row = one sequencing library. Required technical columns:
+# library_id, sample_id, assay, layout, strandedness, fq1, fq2,
+# has_umi, umi_pattern, umi_location. Extra metadata columns are allowed.
+samples: tests/real/samples.tsv
 
 # ---- Output / scratch ------------------------------------------------------#
-results: test_data/results
-tmpdir:  test_data/results/tmp
+results: tests/real/results
+tmpdir:  tests/real/results/tmp
 
 # ---- GDC reference resources (exact GDC files; see resources/get_gdc_references.sh)
 reference:
@@ -65,20 +64,11 @@ full_length:
   # pRCC-TREAT "inside pipeline" scheme (which keeps normalization downstream).
   compute_fpkm_tpm: true
 
-# ---- QuantSeq 3' SE + UMI branch ----------------------------------#
-# NOT a GDC-supported assay: GDC alignment + raw gene counts are reused, while
-# QuantSeq-specific poly(A)/adapter trimming is applied before alignment.
+# ---- QuantSeq branch -------------------------------------------------------#
+# UMI presence/pattern/location and strandedness are library-level properties in
+# samples.tsv, not global QuantSeq settings.
 quantseq:
-  # PRIMARY (pRCC-TREAT scheme) = STAR --quantMode GeneCounts on UMI-extracted but
-  # NON-deduplicated reads, unstranded column (uniform with full-length & TCGA).
-  # SECONDARY (only if has_umi) = umi_tools dedup -> HTSeq-count -> UMI-dedup matrix.
-  has_umi: false                # true = Lexogen UMI module present; extract UMI, emit dedup secondary
-  umi_pattern: "NNNNNN"        # first 6 bp of Read 1 = UMI (used only when has_umi: true)
-  # Strand for the UMI-dedup HTSeq SECONDARY only. QuantSeq FWD is truly forward;
-  # the PRIMARY STAR matrix is unstranded (scheme choice) but keeps the stranded
-  # columns, so the forward count is always available (see the changes/remarks doc).
-  strandedness: forward        # forward|reverse|unstranded  (HTSeq -s yes|reverse|no)
-  bbduk_polyA: true            # polyA + adapter right-trim (BBDuk)
+  bbduk_polyA: true            # poly(A) + adapter right-trim (BBDuk)
 
 # ---- Optional modules (full-length branch only; off by default) ------------#
 modules:

@@ -1,5 +1,5 @@
 # profiles/local/config.yaml — single workstation + Apptainer (example: 96 GB / 32 cores)
-# Usage: snakemake --profile profiles/local --configfile config/config.yaml
+# Usage: snakemake --profile profiles/local --configfile /path/to/run/config.yaml
 # Tune `cores`/`resources.mem_mb` to the machine. The human STAR index needs ~30 GB RAM,
 # so keep concurrent STAR jobs low on a 96 GB box (e.g. cores: 16, one STAR at a time).
 cores: 16

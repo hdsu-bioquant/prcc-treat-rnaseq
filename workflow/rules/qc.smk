@@ -1,16 +1,16 @@
 # qc.smk — FastQC per sample + a single MultiQC report (GDC reports FastQC too)
 
 def fastqc_inputs(wc):
-    fqs = [samples.loc[wc.sample, "fq1"]]
-    if samples.loc[wc.sample, "fq2"] != "-":
-        fqs.append(samples.loc[wc.sample, "fq2"])
+    fqs = [samples.loc[wc.library, "fq1"]]
+    if samples.loc[wc.library, "fq2"] != "-":
+        fqs.append(samples.loc[wc.library, "fq2"])
     return fqs
 
 rule fastqc:
     input:
         fastqc_inputs
     output:
-        done = touch(join(RESULTS, "qc/fastqc/{sample}.done"))
+        done = touch(join(RESULTS, "qc/fastqc/{library}.done"))
     params:
         outdir = join(RESULTS, "qc/fastqc")
     container: IMG["fastqc"]
@@ -22,9 +22,9 @@ rule fastqc:
 
 rule multiqc:
     input:
-        fastqc = expand(join(RESULTS, "qc/fastqc/{s}.done"), s=SAMPLES),
-        fl     = expand(join(RESULTS, "full_length/{s}/{s}.star_gene_counts.tsv"), s=FL_SAMPLES),
-        qs     = expand(join(RESULTS, "quantseq/{s}/{s}.star_gene_counts.tsv"), s=QS_SAMPLES),
+        fastqc = expand(join(RESULTS, "qc/fastqc/{s}.done"), s=LIBRARIES),
+        fl     = expand(join(RESULTS, "full_length/{s}/{s}.star_gene_counts.tsv"), s=FL_LIBRARIES),
+        qs     = expand(join(RESULTS, "quantseq/{s}/{s}.star_gene_counts.tsv"), s=QS_LIBRARIES),
     output:
         html = join(RESULTS, "qc/multiqc_report.html")
     params:
@@ -50,10 +50,10 @@ rule gtf_to_bed12:
 
 rule rseqc_read_distribution:
     input:
-        bam = join(RESULTS, "full_length/{sample}/{sample}.Aligned.sortedByCoord.bam"),
+        bam = join(RESULTS, "full_length/{library}/{library}.Aligned.sortedByCoord.bam"),
         bed = GENE_BED12
     output:
-        txt = join(RESULTS, "full_length/{sample}/qc/{sample}.rseqc.read_distribution.txt")
+        txt = join(RESULTS, "full_length/{library}/qc/{library}.rseqc.read_distribution.txt")
     container: IMG["rseqc"]
     resources:
         mem_mb = 8000, runtime = 120

@@ -1,4 +1,4 @@
-sample	read_id	gene_id	umi	molecule_group	expected_to_align	expected_to_survive_trim
+library_id	read_id	gene_id	umi	molecule_group	expected_to_align	expected_to_survive_trim
 FL_noUMI	FL_noUMI|SYN_GENE_A|fragment1|start40	SYN_GENE_A	-	SYN_GENE_A:start40	1	1
 FL_noUMI	FL_noUMI|SYN_GENE_A|fragment2|start120	SYN_GENE_A	-	SYN_GENE_A:start120	1	1
 FL_noUMI	FL_noUMI|SYN_GENE_A|fragment3|start220	SYN_GENE_A	-	SYN_GENE_A:start220	1	1

@@ -1,5 +1,5 @@
 # profiles/slurm/config.yaml — SLURM + Apptainer (HPC sites: BioQuant, IGBMC/IFB)
-# Usage: snakemake --profile profiles/slurm --configfile config/config.yaml
+# Usage: snakemake --profile profiles/slurm --configfile /path/to/run/config.yaml
 executor: slurm
 jobs: 50
 latency-wait: 120

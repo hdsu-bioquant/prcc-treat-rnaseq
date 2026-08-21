@@ -3,13 +3,12 @@
 #                                                                              #
 #  Standardized to the NCI GDC mRNA Analysis pipeline (Data Release 32+):       #
 #    GRCh38.d1.vd1 + GENCODE v36 + STAR 2.7.5c two-pass + STAR GeneCounts.      #
-#  Assay-aware: full-length poly-A (PE) and Lexogen QuantSeq 3' (SE + UMI).     #
+#  Assay-aware: full-length poly-A and Lexogen QuantSeq 3'; UMI is library-level.     #
 #                                                                              #
-#  Run:  snakemake -n --configfile config/config.yaml            # dry-run     #
-#        snakemake --profile profiles/slurm    --configfile config/config.yaml #
-#        snakemake --profile profiles/local    --configfile config/config.yaml #
+#  Run:  snakemake -n --configfile /path/to/run/config.yaml       # dry-run     #
+#        snakemake --profile profiles/slurm --configfile /path/to/run/config.yaml #
+#        snakemake --profile profiles/local --configfile /path/to/run/config.yaml #
 #==============================================================================#
-configfile: "config/config.yaml"
 
 include: "rules/common.smk"
 include: "rules/references.smk"

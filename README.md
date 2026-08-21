@@ -10,23 +10,30 @@ Prof. Dr. Carl Herrmann, Dr. Jan-Eric Bökenkamp, Robert Schwarz, B.Sc.
 - unified, **GDC-aligned, assay-aware** RNA-seq pipeline for the multi-site papillary
 renal-cell carcinoma (pRCC) harmonization effort (**pRCC-TREAT**)
 - standardized to the NCI GDC mRNA Analysis pipeline (GRCh38.d1.vd1 + GENCODE v36 + STAR 2.7.5c + STAR GeneCounts)
-- normalisation + cross-protocol integration are downstream
-- primary output: raw-count matrix
+- cross-protocol normalization, batch correction, and differential expression are downstream
+- canonical outputs: per-library gene-expression tables + run-level raw-count matrix + standardized QC
 
 ```
-   FULL-LENGTH poly-A (PE)                        QUANTSEQ 3' tag (SE + UMI)
-   raw FASTQ                                      raw FASTQ
-     │  (optional) fastp                            │  umi_tools extract  (6 bp UMI)
-     │                                              │  BBDuk  (polyA + adapter right-trim)
-     ▼                                              ▼
-   STAR 2-pass (GDC params) ◀─ GDC STAR index ─▶ STAR 2-pass (SE, GDC params)
-     │                                              │
-     ▼  STAR --quantMode GeneCounts                 ▼  STAR --quantMode GeneCounts (non-dedup)
-   raw gene counts (unstranded = PRIMARY)         raw gene counts (unstranded = PRIMARY)
-     │  (optional) FPKM / FPKM-UQ / TPM             │  umi_tools dedup ─▶ HTSeq  (SECONDARY)
-     └───────────────────────┬──────────────────────┘
-                             ▼
-             harmonized raw-count matrix  +  unified MultiQC
+        FULL-LENGTH poly-A (PE)                    QUANTSEQ 3' tag (SE)
+                raw FASTQ                               raw FASTQ
+                    │                                      │
+             UMI extract if present                 UMI extract if present
+                    │                                      │
+             optional fastp                        BBDuk poly(A)/adapter trim
+                    │                                      │
+                    └──────────────┬───────────────────────┘
+                                   ▼
+                         STAR 2-pass (GDC params)
+                                   │
+                         STAR GeneCounts (raw)
+                                   │
+                 ┌─────────────────┴─────────────────┐
+                 ▼                                   ▼
+       canonical gene_expression.tsv       UMI dedup + molecule counts
+        (FL also: FPKM/UQ/TPM)                when UMI is present
+                 └─────────────────┬─────────────────┘
+                                   ▼
+                     run matrices + standardized QC
 ```
 > The pipeline is on GitHub: **https://github.com/hdsu-bioquant/pRCC-RNA-Seq**.
 > The pipeline runs anywhere that provides **Conda + Snakemake + Apptainer/Singularity** — an HPC cluster with a scheduler (e.g., SLURM) or a single workstation.
@@ -139,8 +146,10 @@ bash containers/pull_images.sh
 ```
 
 Pre-pulling to `containers/sif/<name>.sif` decouples runs from flaky registry access (e.g. quay.io TLS
-timeouts). The pipeline uses the local `.sif` if present, else falls back to the `docker://` URI (pulled
-on demand into your Apptainer cache).
+timeouts). `containers/pull_images.sh` reads the pinned image list directly from
+`workflow/config/software_versions.yaml`, which is also used by the workflow and provenance. The pipeline
+uses the local `.sif` if present, else falls back to the declared `docker://` URI (pulled on demand into
+your Apptainer cache).
 
 ---
 
@@ -236,9 +245,9 @@ A documented `templates/` directory will be added once the user-facing schema is
 ### 3.1 Main settings
 
 ```yaml
-samples: /path/to/run/samples.tsv       # library sheet (§2)
-results: /path/to/run/results           # output destination
-tmpdir:  /path/to/run/results/tmp       # STAR scratch
+samples: /path/to/run/samples.tsv        # library sheet (§2)
+output:  /path/to/run/output             # run-wise output root
+tmpdir:  /path/to/run/output/intermediate/tmp  # optional STAR scratch override
 
 reference:
   dir: resources/gdc
@@ -248,24 +257,38 @@ reference:
   sjdb_overhang: 100
 ```
 
+The run output root has a fixed three-part contract:
+
+- `results/`: canonical portable results and sanitized run metadata. This is the directory
+  pRCC-TREAT partners are expected to return centrally. The name is intentionally generic
+  so the pipeline remains useful outside the consortium.
+- `restricted/`: site-retained sequence-level or infrastructure-sensitive products (for
+  example BAMs, detailed FastQC files, full effective configuration).
+- `intermediate/`: disposable preprocessing/alignment artefacts. Snakemake marks many of
+  these as temporary and may remove them automatically once no longer required.
+
+`restricted/` is a pipeline retention category, **not a legal data-classification label**.
+Actual transfer permissions remain governed by the applicable consent/data-sharing policy.
+
 ### 3.2 Assay-level settings
 
-UMI presence, UMI structure, read layout, and strandedness are **not** QuantSeq-global
-configuration switches. They are specified per library in the sample sheet.
+UMI presence, UMI structure, read layout, and strandedness are specified per library in
+the sample sheet, not as QuantSeq-wide switches.
 
 ```yaml
 full_length:
-  trim_adapters:    false
-  count_column:     unstranded
-  compute_fpkm_tpm: true
+  trim_adapters: false
 
 quantseq:
   bbduk_polyA: true
 ```
 
-The primary output is STAR raw gene counts on the non-deduplicated read basis for both
-assays. If a library has `has_umi=true`, UMI extraction happens before assay-specific
-processing and a UMI-deduplicated molecule-count layer is additionally produced.
+The canonical expression basis is STAR **unstranded raw GeneCounts** for both assays.
+Per-library tables additionally retain both stranded STAR diagnostic columns. Full-length
+libraries always receive GDC-style FPKM, FPKM-UQ and TPM columns calculated from the
+unstranded count; these columns are `NA` for QuantSeq because gene-length normalization is
+not appropriate for 3′ tag counting. UMI-bearing libraries additionally receive a
+`umi_molecule_count` column after UMI-tools deduplication + HTSeq counting.
 
 | | Full-length | QuantSeq 3′ |
 |---|---|---|
@@ -273,13 +296,10 @@ processing and a UMI-deduplicated molecule-count layer is additionally produced.
 | UMI | optional, library-level | optional, library-level |
 | Trim | optional fastp; off by default | BBDuk poly(A)/adapter trim |
 | Align | STAR two-pass GDC parameters | STAR two-pass GDC parameters |
-| Primary counts | STAR GeneCounts, non-deduplicated | STAR GeneCounts, non-deduplicated |
-| Secondary UMI counts | when `has_umi=true` | when `has_umi=true` |
-| Optional normalization | FPKM/FPKM-UQ/TPM | none in pipeline |
-
-The primary cohort matrix uses the STAR **unstranded** column for both assays for uniformity
-with TCGA. Per-library STAR tables retain the stranded diagnostic columns, while the
-sample-sheet `strandedness` controls HTSeq counting of UMI-deduplicated BAMs.
+| Canonical raw counts | STAR GeneCounts, unstranded | STAR GeneCounts, unstranded |
+| Stranded diagnostics | retained | retained |
+| FPKM / FPKM-UQ / TPM | produced | `NA` |
+| UMI molecule counts | when `has_umi=true` | when `has_umi=true` |
 
 ### 3.3 Tunable STAR parameters
 
@@ -369,75 +389,120 @@ Skip `--profile profiles/slurm`. Only for small tests — STAR alignment of the 
 
 ## 5. Outputs & Interpretation
 
-Under `results/`:
+A run writes one output root with three retention classes:
 
+```text
+output/
+├── results/
+│   ├── libraries/
+│   │   └── <library_id>/
+│   │       ├── gene_expression.tsv
+│   │       └── qc_metrics.tsv
+│   ├── matrices/
+│   │   ├── raw_gene_counts.tsv
+│   │   └── umi_molecule_counts.tsv        # only when UMI libraries exist
+│   ├── qc/
+│   │   ├── qc_metrics.tsv
+│   │   └── multiqc_report.html
+│   └── run/
+│       ├── libraries.tsv
+│       ├── config.yaml
+│       ├── provenance.yaml
+│       ├── software_versions.tsv
+│       ├── references.tsv
+│       ├── manifest.tsv
+│       ├── checksums.sha256
+│       └── validation_checksums.sha256
+│
+├── restricted/
+│   ├── libraries/<library_id>/
+│   │   ├── alignments/genomic.sorted.bam(.bai)
+│   │   ├── alignments/umi_dedup.bam        # UMI libraries only
+│   │   ├── logs/
+│   │   └── qc/fastqc/
+│   ├── qc/multiqc_data/
+│   └── run/
+│       ├── libraries.original.tsv
+│       └── config.effective.yaml
+│
+└── intermediate/                           # disposable processing artefacts
 ```
-qc/multiqc_report.html                                aggregated QC (FastQC + STAR)
-qc/fastqc/<library>.done                               per-library FastQC marker (+ html/zip)
 
-full_length/<s>/
-  ├── <s>.Aligned.sortedByCoord.bam(.bai)             coord-sorted genome BAM
-  ├── <s>.ReadsPerGene.out.tab                        raw STAR GeneCounts (3 strand columns)
-  ├── <s>.star_gene_counts.tsv                        ★ PRIMARY per-library counts (cleaned)
-  └── <s>.augmented_star_gene_counts.tsv              FPKM / FPKM-UQ / TPM   (if compute_fpkm_tpm)
+### 5.1 Canonical per-library expression table
 
-quantseq/<s>/
-  ├── <s>.star_gene_counts.tsv                        ★ PRIMARY QuantSeq counts (non-dedup, uniform basis)
-  ├── <s>.dedup.bam                                   UMI-deduplicated BAM (secondary path)
-  └── <s>.dedup_htseq_counts.tsv                      SECONDARY UMI-dedup HTSeq counts
+`results/libraries/<library_id>/gene_expression.tsv` is the atomic expression data
+product. Run-level matrices are derived convenience products and can always be rebuilt
+from these library tables. The stable schema is:
 
-matrix/
-  ├── gene_counts_matrix.tsv                          ★★ PRIMARY cohort matrix (STAR unstranded, BOTH branches)
-  └── umi_dedup_matrix.tsv                         SECONDARY UMI-dedup matrix (all UMI libraries)
-```
-`matrix/gene_counts_matrix.tsv` is the **primary output** — raw counts, gene × library, with `# sample_id`, `# assay`, and `# layout` annotation rows.
+| Column | Meaning |
+|---|---|
+| `gene_id` | annotation gene identifier |
+| `gene_name` | annotation gene symbol/name |
+| `gene_type` | annotation gene biotype |
+| `gene_length` | union-exon length used for FL length normalization |
+| `unstranded` | **canonical raw read/fragment count** (STAR GeneCounts column 2) |
+| `stranded_first` | STAR stranded-first diagnostic count |
+| `stranded_second` | STAR stranded-second diagnostic count |
+| `fpkm` | GDC-style FL FPKM from unstranded counts; `NA` for QuantSeq |
+| `fpkm_uq` | GDC-style FL FPKM-UQ from unstranded counts; `NA` for QuantSeq |
+| `tpm` | FL TPM from unstranded counts; `NA` for QuantSeq |
+| `umi_molecule_count` | deduplicated molecule count for UMI libraries; otherwise `NA` |
 
-### 5.1 Library QC guide
+`results/matrices/raw_gene_counts.tsv` is the gene × library matrix used as the principal
+run-wise count product. `umi_molecule_counts.tsv` contains only UMI-bearing libraries.
+The library/sample/assay mapping belongs in `results/run/libraries.tsv`, rather than in
+comment rows embedded inside matrices.
 
-| Metric | Source | Expected healthy values |
-|---|---|---|
-| Uniquely mapped % | `*/Log.final.out` (in MultiQC) | full-length ≳ 90 %, QuantSeq ≳ 85 % |
-| % reads assigned to genes | STAR `N_*` rows / MultiQC | protocol-dependent |
-| TPM sum per library | `augmented_star_gene_counts.tsv` | ≈ 1e6 (sanity check) |
-| Duplication rate | FastQC (in MultiQC) | high for QuantSeq is **expected** (3'-tag) |
-| Library size (assigned counts) | matrix column sums | full-length typically 3–4× deeper than QuantSeq |
+### 5.2 QC products
 
-A library failing on mapping % or gene-assignment fraction usually has an upstream problem (degraded RNA,
-adapter/contamination, wrong reference) that no downstream step can fix.
+MultiQC is the human-facing run report. Detailed FastQC outputs and the raw MultiQC data
+directory remain under `restricted/` because they can expose sequence/source-path details.
+The portable `results/qc/` contains:
 
----
+- `multiqc_report.html`: interactive report headed by a **one-row-per-library** pRCC-RNA-Seq QC summary. MultiQC's default General Statistics table is intentionally disabled because it mixes STAR library-level rows with FastQC R1/R2 file-level rows. Detailed FastQC plots remain available below and retain the R1/R2 distinction. The portable report omits FastQC's literal overrepresented-sequence table; full raw QC data stay under `restricted/`;
+- `qc_metrics.tsv`: stable machine-readable QC rows for all libraries and the source of the library-level MultiQC summary.
+
+Each library also gets the same one-row schema in
+`results/libraries/<library_id>/qc_metrics.tsv`. Current guaranteed metrics include STAR
+input records, unique/multimapping statistics, major unmapped fractions, unstranded
+gene-assigned counts/fraction, and assigned UMI molecules where applicable. PASS/WARN/FAIL
+thresholds are intentionally **not** enforced yet; consortium acceptance thresholds should
+be agreed explicitly before being encoded.
+
+The report's native **Software Versions** section is supplied from the same pipeline-owned
+software manifest used to select containers, rather than relying on incomplete automatic
+version detection from whatever logs MultiQC happens to parse.
+
+### 5.3 Run metadata and integrity
+
+`results/run/libraries.tsv` is a sanitized technical library manifest: it omits FASTQ paths
+and does not implicitly copy arbitrary extra sample-sheet columns. `config.yaml` records the
+scientifically relevant effective configuration without local storage paths. The exact
+original library sheet and full effective configuration remain under `restricted/run/`.
+
+`software_versions.tsv` records the software subset used by that run from the pinned
+`workflow/config/software_versions.yaml` manifest and additionally records the actual
+Snakemake controller version. Production runs deliberately do not launch one container-version
+probe job per tool; declared image contents can be verified separately during pipeline-release
+or integration testing.
+
+`checksums.sha256` is for **transfer/package integrity**. It covers the portable result
+package (including `manifest.tsv`). `validation_checksums.sha256` contains only deliberately
+deterministic canonical files and is intended for cross-installation harmonization tests.
+MultiQC HTML and timestamped provenance are intentionally excluded from validation hashes.
 
 ## 6. Optional modules
 
-### 6.1 FPKM / FPKM-UQ / TPM (GDC augmented output)
+### 6.1 UMI-deduplicated molecule layer
 
-```yaml
-full_length:
-  compute_fpkm_tpm: true    
-```
-Output:
-`full_length/<s>/<s>.augmented_star_gene_counts.tsv`.
+UMI handling is configured per library in the sample sheet. For `has_umi=true`,
+`umi_tools extract` moves the UMI into the read name before assay-specific preprocessing.
+After alignment, `umi_tools dedup` collapses PCR duplicates and HTSeq produces gene-level
+molecule counts. These values appear in the canonical per-library `umi_molecule_count`
+column and in `results/matrices/umi_molecule_counts.tsv`.
 
-This module reproduces GDC's `augmented_star_gene_counts`: `FPKM = RCg·1e9/(RCpc·L)`, `FPKM-UQ` (75th-percentile
-protein-coding denominator), `TPM = (RCg/L)/Σ(RCj/L)·1e6` and is **only appliable to full-length data**. 
-3′-tag data has no length bias, so FPKM/TPM are invalid for QuantSeq (CPM needs to be used downstream).
-
-### 6.2 UMI-deduplicated secondary
-
-UMI handling is configured per library in the sample sheet, for example:
-
-```
-library_id  sample_id  assay        layout  strandedness  fq1       fq2       has_umi  umi_pattern  umi_location
-LIB01       S01        full_length  paired  reverse       R1.fq.gz  R2.fq.gz  true     NNNNNN       read1_start
-LIB02       S02        quantseq     single  forward       QS.fq.gz  -         true     NNNNNN       read1_start
-```
-
-For `has_umi=true`, `umi_tools extract` moves the UMI into the read name before alignment.
-After alignment, `umi_tools dedup` collapses PCR duplicates by mapping position + UMI and
-HTSeq produces molecule-level gene counts. The secondary cohort output is
-`matrix/umi_dedup_matrix.tsv` and may contain UMI-bearing libraries from either assay.
-
----
+Full-length FPKM / FPKM-UQ / TPM are no longer a separate optional output: they are columns
+in the canonical `gene_expression.tsv`. They remain `NA` for QuantSeq.
 
 ## 7. Reproducibility — containers and provenance
 
@@ -446,8 +511,11 @@ Every rule declares a `container:` image, and the profiles run **Apptainer** onl
 ```yaml
 software-deployment-method:
   - apptainer
-apptainer-args: "--bind /path/that/contains/your/data/refs/results"   # set this for your site (see §4.2)
+apptainer-args: "--bind /path/that/contains/your/data/refs/output"   # set this for your site (see §4.2)
 ```
+
+The authoritative pinned software/container registry is
+`workflow/config/software_versions.yaml`. The table below is a human-readable overview.
 
 | Pinned image | Used by |
 |---|---|
@@ -458,7 +526,7 @@ apptainer-args: "--bind /path/that/contains/your/data/refs/results"   # set this
 | `quay.io/biocontainers/fastp:0.23.4--hadf994f_2` | optional full-length adapter trimming |
 | `quay.io/biocontainers/htseq:2.0.9--py39h918f1d6_0` | HTSeq counting (UMI-dedup secondary) |
 | `quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0` · `multiqc:1.21--pyhdfd78af_0` | QC + aggregation |
-| `quay.io/biocontainers/pandas:1.5.2` | count extraction / matrix merge / FPKM-TPM |
+| `quay.io/biocontainers/pandas:1.5.2` | canonical expression/QC tables, matrices, manifests |
 
 Reference: **GRCh38.d1.vd1 + GENCODE v36 + GDC STAR 2.7.5c index**, all GDC-exact and MD5-verified.
 `_img()` prefers a local `containers/sif/<name>.sif` (pull once with `containers/pull_images.sh`, §0.6) and

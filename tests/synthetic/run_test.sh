@@ -75,8 +75,9 @@ echo "PASS: synthetic fixture checksums"
 echo
 
 echo "Cleaning previous synthetic test outputs..."
-rm -rf "$TEST_DIR/results"
+rm -rf "$TEST_DIR/output"
 rm -rf "$TEST_DIR/reference/star_index"
+rm -f "$TEST_DIR/reference/gene_lengths.tsv"
 echo
 
 echo "Running synthetic Snakemake smoke test..."

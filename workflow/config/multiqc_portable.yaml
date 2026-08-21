@@ -1,0 +1,44 @@
+# pRCC-RNA-Seq portable MultiQC policy.
+#
+# The report separates library-level pipeline QC from read-file-level FastQC
+# diagnostics. Software versions are supplied explicitly from the pipeline-owned
+# software manifest through a generated *_mqc_versions.yml file.
+
+title: "pRCC-RNA-Seq QC Report"
+subtitle: "Library-level summary with read-level diagnostic sections"
+intro_text: >-
+  The primary QC summary contains one row per sequencing library. Detailed FastQC
+  sections below remain read-file-specific (R1/R2), while STAR alignment sections
+  are library-specific. The machine-readable QC contract is results/qc/qc_metrics.tsv.
+
+# Avoid a misleading mixed General Statistics table containing both library IDs
+# and individual FASTQ names. The custom Library QC Summary replaces it.
+skip_generalstats: true
+
+# The pipeline provides an authoritative *_mqc_versions.yml for the software used
+# in this run. Disable opportunistic log detection, which otherwise produced an
+# incomplete Software Versions table (for example FastQC only).
+disable_version_detection: true
+versions_table_group_header: "Software"
+
+# Keep the pipeline summary deterministic in position if more custom content is
+# added later.
+custom_content:
+  order:
+    - prcc_rnaseq_qc
+
+# Human-facing column labels are written directly into the temporary custom-content
+# TSV; the canonical results/qc/qc_metrics.tsv retains machine-friendly field names.
+
+section_comments:
+  fastqc: >-
+    FastQC is shown per input FASTQ. Paired-end libraries therefore have separate
+    R1 and R2 entries; these are read-level diagnostics, not additional libraries.
+  star: >-
+    STAR metrics are shown once per sequencing library.
+
+# Raw FastQC / MultiQC data remain under restricted/. The portable HTML keeps
+# aggregate QC plots/status checks but omits the FastQC table that contains
+# literal overrepresented read sequences.
+remove_sections:
+  - fastqc_overrepresented_sequences

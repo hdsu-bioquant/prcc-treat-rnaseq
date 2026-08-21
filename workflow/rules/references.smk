@@ -81,7 +81,7 @@ else:
 
 rule gene_lengths:
     # Non-overlapping (union-exon) gene length per gene_id from the active GTF,
-    # used as the length term in the optional GDC-style FPKM / FPKM-UQ / TPM formulas.
+    # used as the length/gene-metadata input for full-length GDC-style FPKM / FPKM-UQ / TPM.
     input:
         gtf = GTF
     output:

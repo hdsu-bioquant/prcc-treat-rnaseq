@@ -21,7 +21,7 @@ containers/sif/
 !tests/synthetic/data/*.fastq.gz
 
 # Synthetic generated artifacts are not
-tests/synthetic/results/
+tests/synthetic/output/
 tests/synthetic/reference/star_index/
 tests/synthetic/reference/gene_lengths.tsv
 
@@ -30,7 +30,7 @@ tests/synthetic/logs/
 
 # Real sequencing test data are obtained separately, not stored in Git
 tests/real/data/
-tests/real/results/
+tests/real/output/
 
 # Snakemake state, logs, scratch
 .snakemake/

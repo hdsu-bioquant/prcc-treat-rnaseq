@@ -6,7 +6,7 @@
 #   - Annotation : GENCODE v36
 #   - Aligner    : STAR 2.7.5c, two-pass (--twopassMode Basic)
 #   - Counts     : STAR --quantMode GeneCounts (unstranded column = GDC headline)
-#   - Norm       : optional FPKM, FPKM-UQ, TPM (full-length only)
+#   - FL Norm    : FPKM, FPKM-UQ, TPM columns in canonical per-library output
 # Refs: https://docs.gdc.cancer.gov/Data/Bioinformatics_Pipelines/Expression_mRNA_Pipeline/
 #       https://github.com/NCI-GDC/gdc-rnaseq-cwl
 #==============================================================================#
@@ -18,8 +18,8 @@
 samples: tests/real/samples.tsv
 
 # ---- Output / scratch ------------------------------------------------------#
-results: tests/real/results
-tmpdir:  tests/real/results/tmp
+output: tests/real/output
+tmpdir:  tests/real/output/intermediate/tmp
 
 # ---- GDC reference resources (exact GDC files; see resources/get_gdc_references.sh)
 reference:
@@ -57,12 +57,6 @@ full_length:
   # GDC does NOT trim adapters (relies on STAR soft-clipping). Default off for
   # GDC adherence; set true to enable fastp.
   trim_adapters: false
-  # Primary in-pipeline output = STAR raw gene counts (unstranded + stranded
-  # diagnostics). Normalization is OUTSIDE the pipeline per the pRCC-TREAT scheme.
-  count_column: unstranded     # column used for the cohort matrix (unstranded per scheme)
-  # OPTIONAL GDC-style normalized outputs (FPKM/FPKM-UQ/TPM). OFF to match the
-  # pRCC-TREAT "inside pipeline" scheme (which keeps normalization downstream).
-  compute_fpkm_tpm: true
 
 # ---- QuantSeq branch -------------------------------------------------------#
 # UMI presence/pattern/location and strandedness are library-level properties in

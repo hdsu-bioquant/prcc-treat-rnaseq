@@ -17,6 +17,7 @@ include: "rules/align.smk"
 include: "rules/quantify.smk"
 include: "rules/fusion.smk"
 include: "rules/te_ase.smk"
+include: "rules/report.smk"
 
 rule all:
     input:

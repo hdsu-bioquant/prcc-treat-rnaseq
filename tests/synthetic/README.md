@@ -1,83 +1,66 @@
 # Synthetic smoke-test fixture
 
 This directory contains a deliberately tiny, fully synthetic RNA-seq fixture for the
-pRCC-TREAT pipeline. It is intended to live in Git and to run quickly at every development
-iteration and at partner sites. It is **not** intended to test biological realism or
-GDC-reference compatibility; those belong in `tests/real/`.
+pRCC-RNA-Seq pipeline. It is intended to live in Git and to run quickly during development
+and at partner sites. It tests **pipeline routing and the production output contract**, not
+biological realism or GDC-reference compatibility; those belong in `tests/real/`.
 
-## Why a miniature reference is included
+## What the fixture covers
 
-The synthetic reads are generated against `reference/synthetic.fa` and
-`reference/synthetic.gtf`. This makes exact expected gene counts known in advance and
-avoids requiring the production GDC STAR index for every smoke test. The real-data suite
-will continue to test the genuine GRCh38/GENCODE path.
-
-The reference contains three non-overlapping protein-coding test genes:
-
-- `SYN_GENE_A` / `SYN_A`: plus strand, two exons
-- `SYN_GENE_B` / `SYN_B`: minus strand, two exons
-- `SYN_GENE_C` / `SYN_C`: plus strand, one exon
-
-Some full-length fragments cross A/B splice junctions, so the test exercises spliced STAR
-alignment rather than only contiguous genomic mapping.
-
-## Four route-covering libraries
+The miniature reference (`reference/synthetic.fa` + `synthetic.gtf`) contains three
+protein-coding genes and supports spliced STAR alignment. Four libraries exercise every
+current core route:
 
 | library_id | layout | assay | UMI | purpose |
 |---|---|---|---|---|
-| `FL_noUMI` | PE | full length | no | baseline FL path + splice alignment |
-| `FL_UMI` | PE | full length | 6 nt at R1 start | proves UMI logic is not coupled to QS |
-| `QS_noUMI` | SE | 3' | no | QuantSeq trimming/alignment path |
-| `QS_UMI` | SE | 3' | 6 nt at R1 start | Lexogen-like UMI extraction + dedup |
+| `FL_noUMI` | paired | full length | no | baseline FL path + splice alignment |
+| `FL_UMI` | paired | full length | 6 nt at R1 start | proves UMI logic is assay-independent |
+| `QS_noUMI` | single | QuantSeq | no | QuantSeq trimming/alignment path |
+| `QS_UMI` | single | QuantSeq | 6 nt at R1 start | UMI extraction + dedup + QuantSeq trimming |
 
-The fixture sample sheet uses the library-centric schema now expected by the pipeline:
-`library_id`, `sample_id`, `assay`, `layout`, `strandedness`, `fq1`, `fq2`, `has_umi`,
-`umi_pattern`, and `umi_location`. The four libraries deliberately map to only two biological
-`sample_id` values, testing that multiple libraries may belong to one sample. The extra `batch`
-column is intentional: it confirms that additional consortium metadata columns are accepted
-without controlling workflow routing.
+The four libraries deliberately map to only two `sample_id` values, testing that multiple
+libraries may belong to one biological sample. The extra `batch` column in `samples.tsv`
+demonstrates that additional metadata columns are accepted without controlling workflow
+routing.
 
-The UMI fixtures deliberately contain all three cases required to test deduplication:
+The UMI fixtures deliberately contain all three important deduplication cases:
 
-1. same mapping position + same UMI -> PCR duplicates should collapse;
-2. same mapping position + different UMI -> distinct molecules should remain;
-3. same UMI + different mapping position -> distinct molecules should remain.
+1. same mapping position + same UMI -> collapse;
+2. same mapping position + different UMI -> retain;
+3. same UMI + different mapping position -> retain.
 
-QuantSeq reads additionally carry a terminal poly(A) segment. Each QS library contains one
-unmappable read and one deliberately over-trimmed read that should fail `minlength=20`.
+QuantSeq reads include terminal poly(A); each QS library also contains one deliberately
+unmappable read and one read that becomes too short after trimming.
 
-## Exact expectations
+## Expected values
 
-- `expected/gene_lengths.tsv`: expected union-exon gene lengths from the miniature GTF.
-- `expected/raw_gene_counts.tsv`: expected STAR **unstranded raw** gene counts.
-- `expected/umi_dedup_gene_counts.tsv`: expected molecule-level counts after UMI dedup.
-- `expected/expected_summary.tsv`: expected read/fragment totals, trimming loss, and unmapped controls.
-- `expected/read_manifest.tsv`: read-level blueprint for diagnosing failed assertions.
+`expected/` contains the independent golden numerical expectations:
 
-Do not use whole-file checksums for every pipeline output. Canonical count tables can be
-compared exactly; BAM/log/HTML outputs should be checked structurally or by selected parsed
-metrics because metadata, ordering, compression, and timestamps can legitimately differ.
+- `gene_lengths.tsv`: union-exon lengths and gene metadata;
+- `raw_gene_counts.tsv`: exact STAR **unstranded** raw counts;
+- `umi_dedup_gene_counts.tsv`: exact UMI molecule counts;
+- `expected_summary.tsv`: input/post-trim/assigned/molecule totals;
+- `read_manifest.tsv`: read-level blueprint for debugging.
 
-## Running the smoke test
+The fixture FASTQs and reference are tiny enough to commit directly to Git.
+`checksums.sha256` verifies the **input fixture** before every run.
 
-From the repository root, run:
+## Running the test
+
+From anywhere, run:
 
 ```bash
-bash tests/synthetic/run_test.sh
+bash /path/to/pRCC-RNA-Seq/tests/synthetic/run_test.sh
 ```
 
-The script resolves the repository root from its own location, so it can also be invoked
-from another working directory as long as you provide a valid path to `run_test.sh`.
+The script resolves the repository root automatically and then:
 
-`run_test.sh` performs a clean end-to-end test:
-
-1. records basic run information (date, host, Snakemake/Python/container runtime versions);
-2. verifies the committed fixture against `checksums.sha256`;
-3. removes any previous `tests/synthetic/results/` directory;
-4. removes and rebuilds `tests/synthetic/reference/star_index/`;
-5. runs Snakemake with `tests/synthetic/config.yaml` using Apptainer;
-6. runs `validate_results.py` and requires exact agreement with the golden raw-count and
-   UMI-deduplicated molecule-count matrices, plus a MultiQC report.
+1. records basic execution information in a timestamped local log;
+2. verifies the committed synthetic fixture using `checksums.sha256`;
+3. removes any previous `tests/synthetic/output/`;
+4. removes and rebuilds `tests/synthetic/reference/star_index/` and generated `gene_lengths.tsv`;
+5. runs the normal Snakemake workflow with `tests/synthetic/config.yaml`;
+6. validates the resulting **production-style output structure** and exact expected values.
 
 A successful run ends with:
 
@@ -85,42 +68,119 @@ A successful run ends with:
 Synthetic smoke test PASSED.
 ```
 
-### Local run logs
+## What a successful synthetic run looks like
 
-Every invocation writes the complete terminal output (stdout and stderr) to a timestamped
-file while still displaying it interactively:
+The test uses the same output contract as a normal analysis:
+
+```text
+tests/synthetic/output/
+├── results/                         # portable canonical result package
+│   ├── libraries/<library_id>/
+│   │   ├── gene_expression.tsv
+│   │   └── qc_metrics.tsv
+│   ├── matrices/
+│   │   ├── raw_gene_counts.tsv
+│   │   └── umi_molecule_counts.tsv
+│   ├── qc/
+│   │   ├── qc_metrics.tsv
+│   │   └── multiqc_report.html
+│   └── run/
+│       ├── libraries.tsv
+│       ├── config.yaml
+│       ├── provenance.yaml
+│       ├── software_versions.tsv
+│       ├── references.tsv
+│       ├── manifest.tsv
+│       ├── checksums.sha256
+│       └── validation_checksums.sha256
+├── restricted/                    # site-retained BAMs/detailed QC/full local metadata
+└── intermediate/                  # disposable processing artefacts
+```
+
+`validate_results.py` checks the exact raw counts and UMI molecule counts, the canonical
+`gene_expression.tsv` schema (including FL normalization vs QS `NA` values), selected stable
+QC metrics, the library-level MultiQC summary, complete manifest-driven software-version
+provenance, restricted BAM/FastQC presence, run metadata, and both generated checksum files.
+The default mixed-level MultiQC General Statistics table is intentionally suppressed; FastQC
+R1/R2 diagnostics remain in their dedicated report sections.
+
+The synthetic DAG adds only one provenance job for software versions. It records the software
+subset declared by `workflow/config/software_versions.yaml`, writes both
+`results/run/software_versions.tsv` and MultiQC's `*_mqc_versions.yml`, and records the actual
+Snakemake controller version. It does not launch per-container version-probe jobs.
+
+MultiQC 1.21 may still print `custom_content | prcc_rnaseq_qc: Found 1 samples (table)` for
+the single custom-content table file. That message counts the parsed custom-content object, not
+the library rows; the rendered Library QC Summary and validator require all four library rows.
+
+`results/run/checksums.sha256` is for **package/transfer integrity**. The separate
+`validation_checksums.sha256` contains only deliberately deterministic canonical products
+and is intended for cross-installation comparison. MultiQC HTML and timestamped provenance
+are excluded from validation hashes.
+
+Once the output contract is frozen for a consortium release, a reference
+`validation_checksums.sha256` can be committed under `expected/`; partners can then compare
+their synthetic run byte-for-byte for this deterministic subset in addition to the current
+numerical validation.
+
+## Partner-site qualification
+
+For an initial installation check, a partner can send the maintainers:
+
+- `tests/synthetic/output/results/` (the same portable package used for real runs); and
+- the timestamped `tests/synthetic/logs/run_test_*.log` if requested.
+
+This provides evidence that all core assay/layout/UMI paths and the data-delivery contract
+work at that site. A separate real-data harmonization run under `tests/real/` is intended to
+validate the production GDC reference/resources and normal site-specific execution profile.
+
+## Local execution logs
+
+Every invocation mirrors stdout/stderr to:
 
 ```text
 tests/synthetic/logs/run_test_YYYYMMDD_HHMMSS.log
 ```
 
-These files are intended for sharing with the pipeline maintainers when troubleshooting or reporting on successful pipeline installation/application at partners sites.
+These logs are Git-ignored. They may contain host names, usernames, filesystem paths, and
+other infrastructure details emitted by Snakemake/tools, so review them before public
+sharing.
 
-**Note:** execution logs can contain host names, usernames, filesystem paths, project names,
-and other local infrastructure information emitted by Snakemake or external tools. Review a
-log before posting it publicly or attaching it to a public GitHub issue.
+## Git tracking policy
+
+Tracked fixture/source files include the synthetic FASTQs, FASTA/GTF, sample sheet,
+configuration, expected tables, generator, validator, and `run_test.sh`.
+
+Generated locally and **not** tracked:
+
+- `output/`;
+- `reference/star_index/`;
+- `reference/gene_lengths.tsv`;
+- `logs/`.
 
 ## Manual debugging
 
-If necessary, the two main steps can also be run manually from the repository root:
+Equivalent manual execution from the repository root is:
 
 ```bash
-snakemake   --snakefile workflow/Snakefile   --configfile tests/synthetic/config.yaml   --cores 2   --software-deployment-method apptainer   --printshellcmds
+snakemake \
+  --snakefile workflow/Snakefile \
+  --configfile tests/synthetic/config.yaml \
+  --cores 2 \
+  --software-deployment-method apptainer \
+  --printshellcmds
 
 python tests/synthetic/validate_results.py
 ```
 
-For a true clean smoke test, remove both `tests/synthetic/results/` and
-`tests/synthetic/reference/star_index/` first; `run_test.sh` does this automatically.
+For a true clean run, remove `tests/synthetic/output/`, `tests/synthetic/reference/star_index/`, and
+`tests/synthetic/reference/gene_lengths.tsv` first; `run_test.sh` does this automatically.
 
 ## Regeneration
-
-Run:
 
 ```bash
 python tests/synthetic/generate_synthetic_data.py
 ```
 
-from the repository root. Gzipped FASTQs are written deterministically (`mtime=0`).
-`checksums.sha256` records the committed fixture bytes and excludes generated `results/`,
-`reference/star_index/`, and `logs/` content.
+Gzipped FASTQs are deterministic (`mtime=0`). Regeneration also rewrites the synthetic
+config/sample sheet/golden fixture tables and refreshes `checksums.sha256`.

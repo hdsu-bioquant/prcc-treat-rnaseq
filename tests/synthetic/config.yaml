@@ -1,7 +1,7 @@
 # pRCC-TREAT synthetic smoke test (target configuration)
 samples: tests/synthetic/samples.tsv
-results: tests/synthetic/results
-tmpdir: tests/synthetic/results/tmp
+output: tests/synthetic/output
+tmpdir: tests/synthetic/output/intermediate/tmp
 
 reference:
   mode: local
@@ -32,8 +32,6 @@ star:
 
 full_length:
   trim_adapters: false
-  count_column: unstranded
-  compute_fpkm_tpm: true
 
 quantseq:
   bbduk_polyA: true

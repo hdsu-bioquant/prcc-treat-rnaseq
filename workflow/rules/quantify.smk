@@ -1,106 +1,95 @@
-# quantify.smk — pRCC-TREAT primary + secondary quantification
-# PRIMARY (both branches): STAR --quantMode GeneCounts -> raw counts.
-# SECONDARY: UMI-deduplicated molecule-level HTSeq counts for any UMI-bearing library.
+# quantify.smk — canonical per-library expression products and run-level matrices
+# Primary expression basis: STAR unstranded raw GeneCounts for every library.
+# UMI-bearing libraries additionally receive molecule-level HTSeq counts.
 
-# ---- PRIMARY: STAR gene counts, both branches -------------------------------#
-rule star_gene_counts_fl:
-    input:
-        counts = join(RESULTS, "full_length/{library}/{library}.ReadsPerGene.out.tab")
-    output:
-        tsv = join(RESULTS, "full_length/{library}/{library}.star_gene_counts.tsv")
-    container: IMG["py"]
-    resources:
-        mem_mb = 4000, runtime = 30
-    shell:
-        "python workflow/scripts/extract_star_counts.py {input.counts} {output.tsv}"
-
-rule star_gene_counts_qs:
-    input:
-        counts = join(RESULTS, "quantseq/{library}/{library}.ReadsPerGene.out.tab")
-    output:
-        tsv = join(RESULTS, "quantseq/{library}/{library}.star_gene_counts.tsv")
-    container: IMG["py"]
-    resources:
-        mem_mb = 4000, runtime = 30
-    shell:
-        "python workflow/scripts/extract_star_counts.py {input.counts} {output.tsv}"
-
-# ---- SECONDARY: UMI-deduplicated HTSeq counts ------------------------------#
+# ---- UMI molecule counts ---------------------------------------------------#
 rule htseq_dedup_fl:
     input:
-        bam = join(RESULTS, "full_length/{library}/{library}.dedup.bam"),
+        bam = join(RESTRICTED, "libraries/{library}/alignments/umi_dedup.bam"),
         gtf = GTF
     output:
-        counts = join(RESULTS, "full_length/{library}/{library}.dedup_htseq_counts.tsv")
+        counts = temp(join(INTERMEDIATE, "libraries/{library}/quantification/umi_molecule_counts.tsv"))
     params:
         strand = htseq_strand
+    wildcard_constraints:
+        library = FL_UMI_LIBRARY_PATTERN
     threads: 2
     container: IMG["htseq"]
     resources:
         mem_mb = 8000, runtime = 240
     shell:
-        "htseq-count -f bam -r pos -s {params.strand} -t exon -i gene_id -m union "
-        "--nonunique none {input.bam} {input.gtf} > {output.counts}"
+        r"""
+        mkdir -p "$(dirname {output.counts})"
+        htseq-count -f bam -r pos -s {params.strand} -t exon -i gene_id -m union \
+          --nonunique none {input.bam} {input.gtf} > {output.counts}
+        """
 
 rule htseq_dedup_qs:
     input:
-        bam = join(RESULTS, "quantseq/{library}/{library}.dedup.bam"),
+        bam = join(RESTRICTED, "libraries/{library}/alignments/umi_dedup.bam"),
         gtf = GTF
     output:
-        counts = join(RESULTS, "quantseq/{library}/{library}.dedup_htseq_counts.tsv")
+        counts = temp(join(INTERMEDIATE, "libraries/{library}/quantification/umi_molecule_counts.tsv"))
     params:
         strand = htseq_strand
+    wildcard_constraints:
+        library = QS_UMI_LIBRARY_PATTERN
     threads: 2
     container: IMG["htseq"]
     resources:
         mem_mb = 8000, runtime = 240
     shell:
-        "htseq-count -f bam -r pos -s {params.strand} -t exon -i gene_id -m union "
-        "--nonunique none {input.bam} {input.gtf} > {output.counts}"
+        r"""
+        mkdir -p "$(dirname {output.counts})"
+        htseq-count -f bam -r pos -s {params.strand} -t exon -i gene_id -m union \
+          --nonunique none {input.bam} {input.gtf} > {output.counts}
+        """
 
-# ---- OPTIONAL (off by default): GDC-style FPKM/FPKM-UQ/TPM ------------------#
-rule fpkm_tpm_fl:
+# ---- canonical per-library expression table -------------------------------#
+rule gene_expression:
     input:
-        counts  = join(RESULTS, "full_length/{library}/{library}.ReadsPerGene.out.tab"),
-        lengths = GENE_LENGTHS
+        unpack(gene_expression_inputs)
     output:
-        tsv = join(RESULTS, "full_length/{library}/{library}.augmented_star_gene_counts.tsv")
+        tsv = join(RESULTS, "libraries/{library}/gene_expression.tsv")
     params:
-        col = config["full_length"]["count_column"]
+        assay = lambda wc: library_assay(wc.library),
+        umi_counts = lambda wc: (
+            join(INTERMEDIATE, "libraries", wc.library, "quantification", "umi_molecule_counts.tsv")
+            if library_has_umi(wc.library) else "-"
+        )
     container: IMG["py"]
     resources:
         mem_mb = 4000, runtime = 30
     shell:
-        "python workflow/scripts/augment_star_counts.py "
-        "{input.counts} {input.lengths} {params.col} {output.tsv}"
+        r"""
+        mkdir -p "$(dirname {output.tsv})"
+        python workflow/scripts/build_gene_expression.py \
+          {input.counts} {input.lengths} {params.assay} {params.umi_counts} {output.tsv}
+        """
 
-# ---- cohort matrices -------------------------------------------------------#
-rule merge_count_matrix:
-    # PRIMARY cohort matrix: STAR unstranded raw counts, both branches.
+# ---- run-level matrices ----------------------------------------------------#
+rule merge_raw_count_matrix:
     input:
-        fl = expand(join(RESULTS, "full_length/{s}/{s}.star_gene_counts.tsv"), s=FL_LIBRARIES),
-        qs = expand(join(RESULTS, "quantseq/{s}/{s}.star_gene_counts.tsv"), s=QS_LIBRARIES)
+        expand(join(RESULTS, "libraries/{lib}/gene_expression.tsv"), lib=LIBRARIES)
     output:
-        matrix = join(RESULTS, "matrix/gene_counts_matrix.tsv")
+        matrix = join(RESULTS, "matrices/raw_gene_counts.tsv")
     params:
         samplesheet = config["samples"], results = RESULTS
     container: IMG["py"]
     resources:
         mem_mb = 8000, runtime = 60
     shell:
-        "python workflow/scripts/merge_counts.py {params.samplesheet} {params.results} {output.matrix}"
+        "python workflow/scripts/merge_expression.py {params.samplesheet} {params.results} unstranded {output.matrix}"
 
-rule merge_umidedup_matrix:
-    # SECONDARY cohort matrix: all UMI-bearing libraries, regardless of assay.
+rule merge_umi_molecule_matrix:
     input:
-        fl = expand(join(RESULTS, "full_length/{s}/{s}.dedup_htseq_counts.tsv"), s=FL_UMI_LIBRARIES),
-        qs = expand(join(RESULTS, "quantseq/{s}/{s}.dedup_htseq_counts.tsv"), s=QS_UMI_LIBRARIES)
+        expand(join(RESULTS, "libraries/{lib}/gene_expression.tsv"), lib=UMI_LIBRARIES)
     output:
-        matrix = join(RESULTS, "matrix/umi_dedup_matrix.tsv")
+        matrix = join(RESULTS, "matrices/umi_molecule_counts.tsv")
     params:
         samplesheet = config["samples"], results = RESULTS
     container: IMG["py"]
     resources:
         mem_mb = 8000, runtime = 60
     shell:
-        "python workflow/scripts/merge_htseq.py {params.samplesheet} {params.results} dedup {output.matrix}"
+        "python workflow/scripts/merge_expression.py {params.samplesheet} {params.results} umi_molecule_count {output.matrix}"

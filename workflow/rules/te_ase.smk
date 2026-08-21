@@ -1,41 +1,45 @@
 # te_ase.smk — OPTIONAL transposable-element and allele-specific-expression
-# modules (full-length branch only; optional toolkit).
+# modules (full-length only). These outputs remain restricted by default pending
+# a later scope/privacy review.
 
 rule tecount:
-    # TEtranscripts/TEcount: TE-family quantification. Requires a TE annotation GTF
-    # (config: te_gtf), supplied externally (TEtranscripts curated TE GTF).
     input:
-        bam = join(RESULTS, "full_length/{library}/{library}.Aligned.sortedByCoord.bam"),
+        bam = join(RESTRICTED, "libraries/{library}/alignments/genomic.sorted.bam"),
         gtf = GTF
     output:
-        tab = join(RESULTS, "full_length/{library}/te/{library}.TEcount.cntTable")
+        tab = join(RESTRICTED, "libraries/{library}/features/te/TEcount.cntTable")
     params:
         te_gtf  = config.get("te_gtf", ""),
-        project = join(RESULTS, "full_length/{library}/te/{library}.TEcount")
+        project = lambda wc: join(RESTRICTED, "libraries", wc.library, "features", "te", "TEcount")
+    wildcard_constraints:
+        library = FL_LIBRARY_PATTERN
     container: IMG["tetx"]
     resources:
         mem_mb = 16000, runtime = 240
     shell:
         r"""
+        mkdir -p "$(dirname {output.tab})"
         TEcount --sortByPos --BAM {input.bam} --GTF {input.gtf} --TE {params.te_gtf} \
                 --project {params.project}
         test -s {output.tab}
         """
 
 rule ase_readcounter:
-    # GATK ASEReadCounter: allele-specific expression at heterozygous germline sites.
-    # Requires an EXTERNAL germline VCF (config: ase_germline_vcf) — germline variant
-    # calling is DNA-seq/WES and is OUT OF SCOPE for this RNA-seq pipeline.
     input:
-        bam   = join(RESULTS, "full_length/{library}/{library}.Aligned.sortedByCoord.bam"),
-        bai   = join(RESULTS, "full_length/{library}/{library}.Aligned.sortedByCoord.bam.bai"),
+        bam   = join(RESTRICTED, "libraries/{library}/alignments/genomic.sorted.bam"),
+        bai   = join(RESTRICTED, "libraries/{library}/alignments/genomic.sorted.bam.bai"),
         fasta = FASTA
     output:
-        tsv = join(RESULTS, "full_length/{library}/ase/{library}.ASEReadCounter.tsv")
+        tsv = join(RESTRICTED, "libraries/{library}/features/ase/ASEReadCounter.tsv")
     params:
         vcf = config.get("ase_germline_vcf", "")
+    wildcard_constraints:
+        library = FL_LIBRARY_PATTERN
     container: IMG["gatk"]
     resources:
         mem_mb = 16000, runtime = 240
     shell:
-        "gatk ASEReadCounter -R {input.fasta} -I {input.bam} -V {params.vcf} -O {output.tsv}"
+        r"""
+        mkdir -p "$(dirname {output.tsv})"
+        gatk ASEReadCounter -R {input.fasta} -I {input.bam} -V {params.vcf} -O {output.tsv}
+        """

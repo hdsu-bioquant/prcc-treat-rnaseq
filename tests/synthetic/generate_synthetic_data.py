@@ -168,7 +168,8 @@ write_fastq(DATA/'FL_UMI_R2.fastq.gz', fl_u_r2)
 
 # ---------------------------------------------------------------------------
 # 3) QuantSeq SE, no UMI. Each normal read has 15 nt poly(A) to exercise BBDuk.
-# Includes one unmapped read and one read that becomes <20 nt after poly(A) trim.
+# Includes one high-quality unmappable read (C-rich so BBDuk qtrim does not discard it)
+# and one read that becomes <20 nt after poly(A) trim.
 # Expected aligned gene counts A/B/C = 5/4/3.
 # ---------------------------------------------------------------------------
 qs = []
@@ -179,7 +180,7 @@ for gid, starts in qs_starts.items():
         qs.append((rid,qs_read(gid,st)))
         add_manifest('QS_noUMI',rid,gid,'-',f'{gid}:start{st}')
 rid='QS_noUMI|UNMAPPED|read1'
-qs.append((rid,'N'*60+'A'*15)); add_manifest('QS_noUMI',rid,'UNMAPPED','-','unmapped',False,True)
+qs.append((rid,'C'*60+'A'*15)); add_manifest('QS_noUMI',rid,'UNMAPPED','-','unmapped',False,True)
 rid='QS_noUMI|TRIM_DROP|read1'
 qs.append((rid,TX['SYN_GENE_A'][450:460]+'A'*65)); add_manifest('QS_noUMI',rid,'TRIM_DROP','-','trim_drop',False,False)
 write_fastq(DATA/'QS_noUMI_R1.fastq.gz',qs)
@@ -204,17 +205,17 @@ for gid, groups in qs_umi_blueprint.items():
             qsu.append((rid,qs_read_umi(gid,st,umi)))
             add_manifest('QS_UMI',rid,gid,umi,f'{gid}:start{st}:umi{umi}')
 rid='QS_UMI|UNMAPPED|umiTGCATG|copy1'
-qsu.append((rid,'TGCATG'+'N'*60+'A'*9)); add_manifest('QS_UMI',rid,'UNMAPPED','TGCATG','unmapped',False,True)
+qsu.append((rid,'TGCATG'+'C'*60+'A'*9)); add_manifest('QS_UMI',rid,'UNMAPPED','TGCATG','unmapped',False,True)
 rid='QS_UMI|TRIM_DROP|umiACGTAC|copy1'
 qsu.append((rid,'ACGTAC'+TX['SYN_GENE_A'][450:460]+'A'*59)); add_manifest('QS_UMI',rid,'TRIM_DROP','ACGTAC','trim_drop',False,False)
 write_fastq(DATA/'QS_UMI_R1.fastq.gz',qsu)
 
 # Expected gene lengths from union-of-exons.
 with open(EXPECTED/'gene_lengths.tsv','w') as fh:
-    fh.write('gene_id\tgene_length\tgene_type\tgene_name\n')
+    fh.write('gene_id\tgene_length\tgene_type\tgene_name\tchromosome\n')
     for gid in GENES:
         length = sum(e-s+1 for s,e in GENES[gid]['exons'])
-        fh.write(f'{gid}\t{length}\tprotein_coding\t{GENES[gid]["name"]}\n')
+        fh.write(f'{gid}\t{length}\tprotein_coding\t{GENES[gid]["name"]}\tchrSynthetic\n')
 
 # Expected raw STAR unstranded counts, after preprocessing/alignment.
 raw_counts = {
@@ -274,8 +275,8 @@ with open(TEST/'samples.tsv','w') as fh:
 config = '''\
 # pRCC-TREAT synthetic smoke test (target configuration)
 samples: tests/synthetic/samples.tsv
-results: tests/synthetic/results
-tmpdir: tests/synthetic/results/tmp
+output: tests/synthetic/output
+tmpdir: tests/synthetic/output/intermediate/tmp
 
 reference:
   mode: local
@@ -306,8 +307,6 @@ star:
 
 full_length:
   trim_adapters: false
-  count_column: unstranded
-  compute_fpkm_tpm: true
 
 quantseq:
   bbduk_polyA: true

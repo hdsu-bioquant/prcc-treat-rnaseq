@@ -1,4 +1,4 @@
-gene_id	gene_length	gene_type	gene_name
-SYN_GENE_A	600	protein_coding	SYN_A
-SYN_GENE_B	600	protein_coding	SYN_B
-SYN_GENE_C	500	protein_coding	SYN_C
+gene_id	gene_length	gene_type	gene_name	chromosome
+SYN_GENE_A	600	protein_coding	SYN_A	chrSynthetic
+SYN_GENE_B	600	protein_coding	SYN_B	chrSynthetic
+SYN_GENE_C	500	protein_coding	SYN_C	chrSynthetic

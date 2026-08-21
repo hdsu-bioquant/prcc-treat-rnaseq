@@ -1,9 +1,10 @@
 #!/usr/bin/env python
-"""Merge per-sample HTSeq-count outputs into a gene x sample matrix (drops __ rows).
+"""Merge per-sample UMI-deduplicated HTSeq-count outputs into a gene x sample matrix.
 
-kind = dedup  -> all samples with has_umi=true, from either assay branch
-kind = 3prime -> legacy full-length 3'-restricted output (temporary compatibility)
+Drops HTSeq summary rows beginning with ``__`` and includes every library with
+``has_umi=true`` regardless of assay.
 Usage: merge_htseq.py <samples.tsv> <results_dir> <kind> <out.tsv>
+Currently supported kind: dedup
 """
 import sys, os
 import pandas as pd
@@ -24,22 +25,18 @@ for _, r in samples.iterrows():
     s = r["sample"]
     assay = r["assay"]
 
-    if kind == "dedup":
-        if str(r["has_umi"]).strip().lower() not in _TRUE:
-            continue
-        if assay == "full_length_pe":
-            branch = "full_length"
-        elif assay == "quantseq_3prime_se":
-            branch = "quantseq"
-        else:
-            continue
-        suffix = ".dedup_htseq_counts.tsv"
-    elif kind == "3prime":
-        if assay != "full_length_pe":
-            continue
-        branch, suffix = "full_length", ".3prime_htseq_counts.tsv"
+    if kind != "dedup":
+        sys.exit("unknown kind: %s (supported: dedup)" % kind)
+
+    if str(r["has_umi"]).strip().lower() not in _TRUE:
+        continue
+    if assay == "full_length_pe":
+        branch = "full_length"
+    elif assay == "quantseq_3prime_se":
+        branch = "quantseq"
     else:
-        sys.exit("unknown kind: %s" % kind)
+        continue
+    suffix = ".dedup_htseq_counts.tsv"
 
     f = os.path.join(results, branch, s, s + suffix)
     d = pd.read_csv(f, sep="\t", header=None, names=["gene_id", "count"])

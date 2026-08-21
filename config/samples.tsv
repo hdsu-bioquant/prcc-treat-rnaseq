@@ -1,9 +1,9 @@
-sample	assay	fq1	fq2	patient	batch	strandedness	condition
-FL_tumor_01	full_length_pe	data/FL_tumor_01_R1.fastq.gz	data/FL_tumor_01_R2.fastq.gz	P001	b1	unstranded	tumor
-FL_normal_01	full_length_pe	data/FL_normal_01_R1.fastq.gz	data/FL_normal_01_R2.fastq.gz	P001	b1	unstranded	normal
-FL_tumor_02	full_length_pe	data/FL_tumor_02_R1.fastq.gz	data/FL_tumor_02_R2.fastq.gz	P002	b1	unstranded	tumor
-FL_normal_02	full_length_pe	data/FL_normal_02_R1.fastq.gz	data/FL_normal_02_R2.fastq.gz	P002	b1	unstranded	normal
-QS_tumor_01	quantseq_3prime_se	data/QS_tumor_01_R1.fastq.gz	-	P101	b1	forward	tumor
-QS_normal_01	quantseq_3prime_se	data/QS_normal_01_R1.fastq.gz	-	P101	b1	forward	normal
-QS_tumor_02	quantseq_3prime_se	data/QS_tumor_02_R1.fastq.gz	-	P102	b2	forward	tumor
-QS_normal_02	quantseq_3prime_se	data/QS_normal_02_R1.fastq.gz	-	P102	b2	forward	normal
+sample	assay	fq1	fq2	patient	batch	strandedness
+FL_tumor_01	full_length_pe	data/FL_tumor_01_R1.fastq.gz	data/FL_tumor_01_R2.fastq.gz	P001	b1	unstranded
+FL_normal_01	full_length_pe	data/FL_normal_01_R1.fastq.gz	data/FL_normal_01_R2.fastq.gz	P001	b1	unstranded
+FL_tumor_02	full_length_pe	data/FL_tumor_02_R1.fastq.gz	data/FL_tumor_02_R2.fastq.gz	P002	b1	unstranded
+FL_normal_02	full_length_pe	data/FL_normal_02_R1.fastq.gz	data/FL_normal_02_R2.fastq.gz	P002	b1	unstranded
+QS_tumor_01	quantseq_3prime_se	data/QS_tumor_01_R1.fastq.gz	-	P101	b1	forward
+QS_normal_01	quantseq_3prime_se	data/QS_normal_01_R1.fastq.gz	-	P101	b1	forward
+QS_tumor_02	quantseq_3prime_se	data/QS_tumor_02_R1.fastq.gz	-	P102	b2	forward
+QS_normal_02	quantseq_3prime_se	data/QS_normal_02_R1.fastq.gz	-	P102	b2	forward

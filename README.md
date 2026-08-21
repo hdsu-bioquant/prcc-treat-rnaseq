@@ -195,7 +195,7 @@ sample   assay   fq1   fq2   patient   batch   strandedness
 | `fq1` | Absolute path to R1 FASTQ (the single-end read) - both `.fastq.gz` / `.fq.gz`) or plain `.fastq` work|
 | `fq2` | Absolute path to R2 FASTQ for paired-end; `-` (or empty) for single-end - both `.fastq.gz` / `.fq.gz`) or plain `.fastq` work |
 | `patient` | Subject/donor ID (pairs samples across protocols or conditions) |
-| `batch` | Sequencing batch / site (can be used as a covariate for differential expression analysis) |
+| `batch` | Sequencing batch / processing site; retained for QC, provenance, and downstream harmonization |
 | `strandedness` | `unstranded` \| `forward` \| `reverse` (GDC headline = `unstranded`) |
 
 **Examples:**

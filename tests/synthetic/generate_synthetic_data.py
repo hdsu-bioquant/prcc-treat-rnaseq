@@ -259,12 +259,12 @@ with open(EXPECTED/'expected_summary.tsv','w') as fh:
 
 # Future-facing sample sheet: only adds UMI metadata to the present schema.
 with open(TEST/'samples.tsv','w') as fh:
-    fh.write('sample\tassay\tfq1\tfq2\tpatient\tbatch\tstrandedness\tcondition\thas_umi\tumi_pattern\tumi_location\n')
+    fh.write('sample\tassay\tfq1\tfq2\tpatient\tbatch\tstrandedness\thas_umi\tumi_pattern\tumi_location\n')
     rows=[
-      ('FL_noUMI','full_length_pe','tests/synthetic/data/FL_noUMI_R1.fastq.gz','tests/synthetic/data/FL_noUMI_R2.fastq.gz','SYN_FL1','synthetic','forward','test','false','-','-'),
-      ('FL_UMI','full_length_pe','tests/synthetic/data/FL_UMI_R1.fastq.gz','tests/synthetic/data/FL_UMI_R2.fastq.gz','SYN_FL2','synthetic','forward','test','true','NNNNNN','read1_start'),
-      ('QS_noUMI','quantseq_3prime_se','tests/synthetic/data/QS_noUMI_R1.fastq.gz','-','SYN_QS1','synthetic','forward','test','false','-','-'),
-      ('QS_UMI','quantseq_3prime_se','tests/synthetic/data/QS_UMI_R1.fastq.gz','-','SYN_QS2','synthetic','forward','test','true','NNNNNN','read1_start'),
+      ('FL_noUMI','full_length_pe','tests/synthetic/data/FL_noUMI_R1.fastq.gz','tests/synthetic/data/FL_noUMI_R2.fastq.gz','SYN_FL1','synthetic','forward','false','-','-'),
+      ('FL_UMI','full_length_pe','tests/synthetic/data/FL_UMI_R1.fastq.gz','tests/synthetic/data/FL_UMI_R2.fastq.gz','SYN_FL2','synthetic','forward','true','NNNNNN','read1_start'),
+      ('QS_noUMI','quantseq_3prime_se','tests/synthetic/data/QS_noUMI_R1.fastq.gz','-','SYN_QS1','synthetic','forward','false','-','-'),
+      ('QS_UMI','quantseq_3prime_se','tests/synthetic/data/QS_UMI_R1.fastq.gz','-','SYN_QS2','synthetic','forward','true','NNNNNN','read1_start'),
     ]
     for row in rows: fh.write('\t'.join(row)+'\n')
 

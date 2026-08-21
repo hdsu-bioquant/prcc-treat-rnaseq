@@ -8,7 +8,7 @@
 #   module load system/singularity
 #   bash containers/pull_images.sh
 # Tunables: RETRIES (default 25), SLEEP seconds between tries (default 15),
-#           ALL=1 to also pull the heavy optional-module images (fusion/TE/ASE/DE).
+#           ALL=1 to also pull the heavy optional-module images (fusion/TE/ASE).
 #==============================================================================#
 set -u
 cd "$(dirname "$0")/.."          # -> RNA-Seq-pRCC
@@ -30,14 +30,13 @@ uris=(
 )
 
 if [[ "${ALL:-0}" == "1" ]]; then
-  names+=(rseqc arriba starfusion tetx gatk de)
+  names+=(rseqc arriba starfusion tetx gatk)
   uris+=(
     "docker://quay.io/biocontainers/rseqc:5.0.3--py39hf95cd2a_0"
     "docker://quay.io/biocontainers/arriba:1.1.0--h2e03b76_3"
     "docker://trinityctat/starfusion:1.6.0"
     "docker://quay.io/biocontainers/tetranscripts:2.2.3--pyhdfd78af_0"
     "docker://broadinstitute/gatk:4.5.0.0"
-    "docker://bioconductor/bioconductor_docker:RELEASE_3_18"
   )
 fi
 

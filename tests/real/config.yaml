@@ -6,7 +6,7 @@
 #   - Annotation : GENCODE v36
 #   - Aligner    : STAR 2.7.5c, two-pass (--twopassMode Basic)
 #   - Counts     : STAR --quantMode GeneCounts (unstranded column = GDC headline)
-#   - Norm       : FPKM, FPKM-UQ, TPM (full-length only; CPM for QuantSeq 3')
+#   - Norm       : optional FPKM, FPKM-UQ, TPM (full-length only)
 # Refs: https://docs.gdc.cancer.gov/Data/Bioinformatics_Pipelines/Expression_mRNA_Pipeline/
 #       https://github.com/NCI-GDC/gdc-rnaseq-cwl
 #==============================================================================#
@@ -66,8 +66,8 @@ full_length:
   compute_fpkm_tpm: true
 
 # ---- QuantSeq 3' SE + UMI branch ----------------------------------#
-# NOT a GDC-supported assay: GDC alignment + raw gene counts are reused, but
-# UMI dedup + polyA trim + CPM (NOT FPKM/TPM) are mandatory, assay-forced steps.
+# NOT a GDC-supported assay: GDC alignment + raw gene counts are reused, while
+# QuantSeq-specific poly(A)/adapter trimming is applied before alignment.
 quantseq:
   # PRIMARY (pRCC-TREAT scheme) = STAR --quantMode GeneCounts on UMI-extracted but
   # NON-deduplicated reads, unstranded column (uniform with full-length & TCGA).

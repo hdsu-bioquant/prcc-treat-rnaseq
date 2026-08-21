@@ -12,14 +12,8 @@ FASTA     = join(REFDIR, config["reference"]["genome_fasta"])
 GTF       = join(REFDIR, config["reference"]["gtf"])
 STAR_IDX  = join(REFDIR, config["reference"]["star_index"])     # directory
 STAR_IDX_DONE = join(STAR_IDX, "SAindex")                        # build/extract marker
-GENE_LENGTHS  = join(REFDIR, "gene_lengths.tsv")     # only for OPTIONAL FPKM/TPM
+GENE_LENGTHS  = join(REFDIR, "gene_lengths.tsv")                  # only for OPTIONAL FPKM/TPM
 
-# Legacy 3'-window paths. Kept temporarily so the current workflow still parses
-# while the obsolete cross-assay experiment is removed in a later cleanup.
-CROSS_ASSAY = config.get("cross_assay", {})
-THREEP_WINDOW_BP = int(CROSS_ASSAY.get("window_bp", 500))
-THREEP_GTF = join(REFDIR, "gencode.v36.3prime_%dbp.gtf" % THREEP_WINDOW_BP)
-THREEP_BED = join(REFDIR, "gencode.v36.3prime_%dbp.bed" % THREEP_WINDOW_BP)
 
 # ---- sample sheet ----------------------------------------------------------#
 samples = pd.read_csv(config["samples"], sep="\t", dtype=str).fillna("-")
@@ -131,13 +125,8 @@ IMG = {
     "tetx":      _img("tetx",      "docker://quay.io/biocontainers/tetranscripts:2.2.3--pyhdfd78af_0"),
     "gatk":      _img("gatk",      "docker://broadinstitute/gatk:4.5.0.0"),
     "py":        _img("py",        "docker://quay.io/biocontainers/pandas:1.5.2"),
-    # DE entry kept temporarily until the dedicated DE cleanup pass.
-    "de":        _img("de",        "docker://bioconductor/bioconductor_docker:RELEASE_3_18"),
 }
 
-# Legacy DE bookkeeping kept parse-safe until the dedicated cleanup pass.
-decfg = config.get("de", {})
-DE_ASSAYS = [a for a in decfg.get("assays", []) if a in set(samples["assay"])] if decfg.get("enabled", False) else []
 
 # ---- final outputs ---------------------------------------------------------#
 def all_outputs(wc):

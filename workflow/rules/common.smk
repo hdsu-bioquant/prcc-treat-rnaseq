@@ -12,7 +12,7 @@ FASTA     = join(REFDIR, config["reference"]["genome_fasta"])
 GTF       = join(REFDIR, config["reference"]["gtf"])
 STAR_IDX  = join(REFDIR, config["reference"]["star_index"])     # directory
 STAR_IDX_DONE = join(STAR_IDX, "SAindex")                        # build/extract marker
-GENE_LENGTHS  = join(REFDIR, "gencode.v36.gene_lengths.tsv")     # only for OPTIONAL FPKM/TPM
+GENE_LENGTHS  = join(REFDIR, "gene_lengths.tsv")     # only for OPTIONAL FPKM/TPM
 
 # Legacy 3'-window paths. Kept temporarily so the current workflow still parses
 # while the obsolete cross-assay experiment is removed in a later cleanup.

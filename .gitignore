@@ -23,6 +23,7 @@ containers/sif/
 # Synthetic generated artifacts are not
 tests/synthetic/results/
 tests/synthetic/reference/star_index/
+tests/synthetic/reference/gene_lengths.tsv
 
 # Local synthetic-test execution logs
 tests/synthetic/logs/

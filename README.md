@@ -489,7 +489,9 @@ or integration testing.
 `checksums.sha256` is for **transfer/package integrity**. It covers the portable result
 package (including `manifest.tsv`). `validation_checksums.sha256` contains only deliberately
 deterministic canonical files and is intended for cross-installation harmonization tests.
-MultiQC HTML and timestamped provenance are intentionally excluded from validation hashes.
+The synthetic suite compares this deterministic subset against a frozen maintainer-approved
+reference manifest in `tests/synthetic/expected/validation_checksums.sha256`. MultiQC HTML and
+timestamped provenance are intentionally excluded from validation hashes.
 
 ## 6. Optional modules
 

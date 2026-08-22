@@ -40,7 +40,9 @@ unmappable read and one read that becomes too short after trimming.
 - `raw_gene_counts.tsv`: exact STAR **unstranded** raw counts;
 - `umi_dedup_gene_counts.tsv`: exact UMI molecule counts;
 - `expected_summary.tsv`: input/post-trim/assigned/molecule totals;
-- `read_manifest.tsv`: read-level blueprint for debugging.
+- `read_manifest.tsv`: read-level blueprint for debugging;
+- `validation_checksums.sha256`: frozen maintainer-approved hashes for the 14 deterministic
+  canonical run products used for cross-installation qualification.
 
 The fixture FASTQs and reference are tiny enough to commit directly to Git.
 `checksums.sha256` verifies the **input fixture** before every run.
@@ -60,7 +62,9 @@ The script resolves the repository root automatically and then:
 3. removes any previous `tests/synthetic/output/`;
 4. removes and rebuilds `tests/synthetic/reference/star_index/` and generated `gene_lengths.tsv`;
 5. runs the normal Snakemake workflow with `tests/synthetic/config.yaml`;
-6. validates the resulting **production-style output structure** and exact expected values.
+6. validates the resulting **production-style output structure** and exact expected values;
+7. verifies the generated deterministic output hashes against the frozen reference baseline in
+   `expected/validation_checksums.sha256`.
 
 A successful run ends with:
 
@@ -100,7 +104,8 @@ tests/synthetic/output/
 `validate_results.py` checks the exact raw counts and UMI molecule counts, the canonical
 `gene_expression.tsv` schema (including FL normalization vs QS `NA` values), selected stable
 QC metrics, the library-level MultiQC summary, complete manifest-driven software-version
-provenance, restricted BAM/FastQC presence, run metadata, and both generated checksum files.
+provenance, restricted BAM/FastQC presence, run metadata, both generated checksum files, and
+the frozen cross-installation validation baseline.
 The default mixed-level MultiQC General Statistics table is intentionally suppressed; FastQC
 R1/R2 diagnostics remain in their dedicated report sections.
 
@@ -118,10 +123,11 @@ the library rows; the rendered Library QC Summary and validator require all four
 and is intended for cross-installation comparison. MultiQC HTML and timestamped provenance
 are excluded from validation hashes.
 
-Once the output contract is frozen for a consortium release, a reference
-`validation_checksums.sha256` can be committed under `expected/`; partners can then compare
-their synthetic run byte-for-byte for this deterministic subset in addition to the current
-numerical validation.
+The reference `expected/validation_checksums.sha256` is now frozen. A successful synthetic
+run therefore demonstrates both numerical/schema correctness and byte-for-byte agreement of
+the 14 deterministic canonical products with the reference installation. The frozen file is
+maintainer-owned and must not be silently regenerated; it should change only when an intentional
+output-contract change has been reviewed and reproduced in clean runs.
 
 ## Partner-site qualification
 
@@ -183,4 +189,6 @@ python tests/synthetic/generate_synthetic_data.py
 ```
 
 Gzipped FASTQs are deterministic (`mtime=0`). Regeneration also rewrites the synthetic
-config/sample sheet/golden fixture tables and refreshes `checksums.sha256`.
+config/sample sheet/golden fixture tables and refreshes `checksums.sha256`. It does **not**
+rewrite `expected/validation_checksums.sha256`; that frozen cross-installation baseline is a
+maintainer-approved artifact.

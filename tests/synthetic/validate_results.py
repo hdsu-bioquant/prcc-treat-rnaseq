@@ -63,24 +63,79 @@ def sha256(path):
     return h.hexdigest()
 
 
-def verify_checksum_file(path, base):
+def parse_checksum_file(path):
+    """Read a sha256sum-style manifest as {relative_path: digest}."""
     if not path.is_file():
         fail(f"missing checksum file {path.relative_to(ROOT)}")
-    checked = 0
-    for line in path.read_text().splitlines():
+
+    entries = {}
+    for line_no, line in enumerate(path.read_text().splitlines(), start=1):
         if not line.strip():
             continue
-        digest, rel = line.split(None, 1)
+        try:
+            digest, rel = line.split(None, 1)
+        except ValueError:
+            fail(f"malformed checksum line {line_no} in {path.relative_to(ROOT)}")
         rel = rel.strip()
+        if not re.fullmatch(r"[0-9a-fA-F]{64}", digest):
+            fail(f"invalid SHA256 digest on line {line_no} in {path.relative_to(ROOT)}")
+        if rel in entries:
+            fail(f"duplicate checksum target {rel} in {path.relative_to(ROOT)}")
+        entries[rel] = digest.lower()
+
+    if not entries:
+        fail(f"checksum file is empty: {path.relative_to(ROOT)}")
+    return entries
+
+
+def verify_checksum_file(path, base):
+    entries = parse_checksum_file(path)
+    for rel, digest in entries.items():
         target = base / rel
         if not target.is_file():
             fail(f"checksum target is missing: {target.relative_to(ROOT)}")
-        if sha256(target) != digest:
-            fail(f"checksum mismatch: {target.relative_to(ROOT)}")
-        checked += 1
-    if checked == 0:
-        fail(f"checksum file is empty: {path.relative_to(ROOT)}")
-    return checked
+        observed = sha256(target)
+        if observed != digest:
+            fail(
+                f"checksum mismatch: {target.relative_to(ROOT)} "
+                f"(observed={observed}, expected={digest})"
+            )
+    return len(entries)
+
+
+def compare_checksum_files(observed_path, expected_path):
+    """Compare generated validation hashes with the frozen reference baseline."""
+    observed = parse_checksum_file(observed_path)
+    expected = parse_checksum_file(expected_path)
+
+    observed_paths = set(observed)
+    expected_paths = set(expected)
+    missing = sorted(expected_paths - observed_paths)
+    unexpected = sorted(observed_paths - expected_paths)
+    changed = sorted(
+        rel for rel in observed_paths & expected_paths
+        if observed[rel] != expected[rel]
+    )
+
+    if missing or unexpected or changed:
+        print("FAIL: frozen validation checksum baseline differs", file=sys.stderr)
+        if missing:
+            print("  Missing deterministic files:", file=sys.stderr)
+            for rel in missing:
+                print(f"    {rel}", file=sys.stderr)
+        if unexpected:
+            print("  Unexpected deterministic files:", file=sys.stderr)
+            for rel in unexpected:
+                print(f"    {rel}", file=sys.stderr)
+        if changed:
+            print("  Changed deterministic files:", file=sys.stderr)
+            for rel in changed:
+                print(f"    {rel}", file=sys.stderr)
+                print(f"      observed: {observed[rel]}", file=sys.stderr)
+                print(f"      expected: {expected[rel]}", file=sys.stderr)
+        raise SystemExit(1)
+
+    return len(expected)
 
 
 # Production-style top-level contract.
@@ -289,8 +344,20 @@ pass_("portable library metadata omits raw FASTQ paths")
 
 # Package integrity and deterministic validation manifests are self-consistent.
 package_n = verify_checksum_file(RESULTS / "run" / "checksums.sha256", RESULTS)
-validation_n = verify_checksum_file(RESULTS / "run" / "validation_checksums.sha256", RESULTS)
+validation_path = RESULTS / "run" / "validation_checksums.sha256"
+validation_n = verify_checksum_file(validation_path, RESULTS)
 pass_(f"package checksums ({package_n} files)")
 pass_(f"validation checksums ({validation_n} deterministic files)")
+
+# Cross-installation qualification: the deterministic output subset must match the
+# maintainer-approved reference hashes committed with this synthetic fixture.
+frozen_validation = EXPECTED / "validation_checksums.sha256"
+frozen_n = compare_checksum_files(validation_path, frozen_validation)
+if frozen_n != validation_n:
+    fail(
+        "frozen validation checksum entry count differs from generated validation set "
+        f"(generated={validation_n}, frozen={frozen_n})"
+    )
+pass_(f"frozen cross-installation validation baseline ({frozen_n} files)")
 
 print("\nSynthetic smoke test PASSED.")

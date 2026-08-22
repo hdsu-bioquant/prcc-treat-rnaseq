@@ -12,7 +12,9 @@ bash tests/synthetic/run_test.sh
 ```
 
 It validates exact known counts **and the same `results/` / `restricted/` /
-`intermediate/` output contract used in normal analyses**. See
+`intermediate/` output contract used in normal analyses**. The deterministic canonical output
+subset is additionally compared byte-for-byte against the frozen reference hashes in
+`synthetic/expected/validation_checksums.sha256`. See
 [`synthetic/README.md`](synthetic/README.md) for details.
 
 For consortium qualification, the synthetic test answers:

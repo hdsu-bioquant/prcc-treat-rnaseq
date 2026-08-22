@@ -67,6 +67,7 @@ meta = """# id: prcc_rnaseq_qc
 #   One row per sequencing library. STAR metrics are library-level. Detailed
 #   FastQC R1/R2 diagnostics remain available in the dedicated FastQC sections
 #   below. No consortium PASS/WARN/FAIL thresholds are applied yet.
+# format: tsv
 # plot_type: table
 # pconfig:
 #   id: prcc_rnaseq_qc_table
@@ -74,47 +75,65 @@ meta = """# id: prcc_rnaseq_qc
 #   namespace: pRCC-RNA-Seq
 #   col1_header: Library ID
 # headers:
-#   "STAR input":
+#   sample_id:
+#     title: Sample ID
+#     description: Biological sample identifier associated with this sequencing library.
+#   assay:
+#     title: Assay
+#     description: Library assay type.
+#   layout:
+#     title: Layout
+#     description: Sequencing read layout.
+#   has_umi:
+#     title: UMI
+#     description: Whether the library contains a UMI used for molecule deduplication.
+#   star_input_records:
+#     title: STAR input
 #     description: Records entering STAR after preprocessing.
 #     format: '{:,.0f}'
-#   "Unique mapped %":
+#   uniquely_mapped_percent:
+#     title: Unique mapped %
 #     description: Percentage of STAR input records mapped uniquely.
 #     suffix: '%'
 #     format: '{:.1f}'
 #     min: 0
 #     max: 100
-#   "Multi-mapped %":
+#   multi_mapped_percent:
+#     title: Multi-mapped %
 #     description: Percentage of STAR input records mapped to multiple loci.
 #     suffix: '%'
 #     format: '{:.1f}'
 #     min: 0
 #     max: 100
-#   "Gene assigned":
+#   gene_assigned_unstranded:
+#     title: Gene assigned
 #     description: Sum of canonical unstranded STAR gene counts.
 #     format: '{:,.0f}'
-#   "Assigned %":
+#   gene_assigned_percent:
+#     title: Assigned %
 #     description: Canonical unstranded gene-assigned count divided by STAR input records.
 #     suffix: '%'
 #     format: '{:.1f}'
 #     min: 0
 #     max: 100
-#   "UMI molecules":
+#   umi_molecules_assigned:
+#     title: UMI molecules
 #     description: Assigned gene-level molecules after UMI deduplication; blank for non-UMI libraries.
 #     format: '{:,.0f}'
 """
 
 columns = [
-    "Library ID",
-    "Sample ID",
-    "Assay",
-    "Layout",
-    "UMI",
-    "STAR input",
-    "Unique mapped %",
-    "Multi-mapped %",
-    "Gene assigned",
-    "Assigned %",
-    "UMI molecules",
+    "library_id",
+    "sample_id",
+    "assay",
+    "layout",
+    "has_umi",
+    "star_input_records",
+    "uniquely_mapped_percent",
+    "multi_mapped_percent",
+    "gene_assigned_unstranded",
+    "gene_assigned_percent",
+    "umi_molecules_assigned",
 ]
 
 with open(out, "w", newline="") as fh:

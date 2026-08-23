@@ -16,7 +16,24 @@ if not OUTPUT_ROOT:
 RESULTS      = join(OUTPUT_ROOT, "results")
 RESTRICTED   = join(OUTPUT_ROOT, "restricted")
 INTERMEDIATE = join(OUTPUT_ROOT, "intermediate")
-TMPDIR       = config.get("tmpdir", join(INTERMEDIATE, "tmp"))
+TMPDIR = config.get("tmpdir", join(INTERMEDIATE, "tmp"))
+
+# Keep per-user runtime/cache state created by containerized tools out of the
+# Snakemake working directory. These files are disposable and belong with
+# other run-specific temporary data.
+RUNTIME_DIR = os.path.abspath(join(TMPDIR, "runtime"))
+
+MPLCONFIGDIR = join(RUNTIME_DIR, "matplotlib")
+XDG_CACHE_HOME = join(RUNTIME_DIR, "cache")
+JAVA_USER_HOME = join(RUNTIME_DIR, "java-home")
+
+# Set on the host as well as explicitly inside Apptainer containers.
+os.environ["MPLCONFIGDIR"] = MPLCONFIGDIR
+os.environ["XDG_CACHE_HOME"] = XDG_CACHE_HOME
+
+os.environ["APPTAINERENV_MPLCONFIGDIR"] = MPLCONFIGDIR
+os.environ["APPTAINERENV_XDG_CACHE_HOME"] = XDG_CACHE_HOME
+os.environ["APPTAINERENV_JAVA_TOOL_OPTIONS"] = f"-Duser.home={JAVA_USER_HOME}"
 
 # ---- references ------------------------------------------------------------#
 REFDIR    = config["reference"]["dir"]

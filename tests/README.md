@@ -34,5 +34,6 @@ real production run**, not through a special test wrapper. It answers:
 > Can this site's actual HPC/workstation, profile, containers, storage, and fixed GDC
 > resources reproduce the consortium-standard outputs on realistic human RNA-seq data?
 
-The real fixture/download procedure and cross-site checksum baseline will be finalized after
-the production input/output templates are frozen.
+The production input/output templates are now defined under `templates/`. The real
+fixture/download procedure and its cross-site checksum baseline can therefore be finalized
+against that same normal-run interface.

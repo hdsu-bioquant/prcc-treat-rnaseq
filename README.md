@@ -12,6 +12,7 @@ renal-cell carcinoma (pRCC) harmonization effort (**pRCC-TREAT**)
 - standardized to the NCI GDC mRNA Analysis pipeline (GRCh38.d1.vd1 + GENCODE v36 + STAR 2.7.5c + STAR GeneCounts)
 - cross-protocol normalization, batch correction, and differential expression are downstream
 - canonical outputs: per-library gene-expression tables + run-level raw-count matrix + standardized QC
+- official run templates: [`templates/config.yaml`](templates/config.yaml) + [`templates/samples.tsv`](templates/samples.tsv); see [`templates/README.md`](templates/README.md)
 
 ```
         FULL-LENGTH poly-A (PE)                    QUANTSEQ 3' tag (SE)
@@ -126,17 +127,20 @@ If your cluster does not use environment modules, just make sure `apptainer` (or
 
 ### 0.5 Get the GDC reference files (one-time, ~59 GB)
 
-Two equivalent options — both land the files in `resources/gdc/`:
+The official production template uses `reference.mode: gdc` and `reference.dir: resources/gdc`.
+Two equivalent approaches land the exact files there:
 
 ```bash
-# (a) let Snakemake fetch them automatically (config: reference.download_references: true — the default), OR
-# (b) pre-download + MD5-verify yourself:
+# (a) pre-download + MD5-verify the complete bundle (recommended before a production campaign):
 bash resources/get_gdc_references.sh resources/gdc
+
+# (b) or let the GDC-mode Snakemake reference rules retrieve any missing targets when the run starts.
 ```
 
-This retrieves the **exact GDC files** (MD5-checked): `GRCh38.d1.vd1.fa`,
+This retrieves the **exact GDC files** (MD5-checked by the helper script): `GRCh38.d1.vd1.fa`,
 `gencode.v36.annotation.gtf`, and the GDC-built `star-2.7.5c_GRCh38.d1.vd1_gencode.v36` index.
-The index is **downloaded, never rebuilt**, so it is byte-identical to GDC's / TCGA's.
+For harmonized production runs the human index is **downloaded, not rebuilt**, so it matches the
+GDC / TCGA reference bundle.
 
 ### 0.6 Pre-pull the container images (one-time, ~1.4 GB)
 
@@ -191,6 +195,10 @@ cd /path/to/pRCC-RNA-Seq
 
 ## 2. Sample Sheet construction
 
+The official copyable run interface lives in [`templates/`](templates/). For a new run, copy
+`templates/samples.tsv` and `templates/config.yaml` to a run-specific location and edit the
+copies; [`templates/README.md`](templates/README.md) is the authoritative field-by-field guide.
+
 The sample sheet is a **tab-separated file with a header row**. One row represents one
 **sequencing library**. The run-specific config points to this file via `samples:`.
 
@@ -239,23 +247,43 @@ or accidental reuse of the same FASTQ in multiple library rows.
 
 Each analysis run supplies its own YAML configuration explicitly with `--configfile`.
 There is intentionally **no repository-wide default run configuration**: omitted run-specific
-settings should fail rather than silently inherit values from an unrelated example dataset.
-A documented `templates/` directory will be added once the user-facing schema is frozen.
+settings should fail rather than silently inherit values from an unrelated dataset.
+
+Start from the official files in [`templates/`](templates/):
+
+```bash
+mkdir -p /path/to/run
+cp templates/config.yaml /path/to/run/config.yaml
+cp templates/samples.tsv /path/to/run/samples.tsv
+```
+
+Edit the copies, not the maintained templates. Relative paths in both files are resolved
+relative to the current working directory (normally the repository root), not relative to the
+config/sample-sheet file location; absolute paths are recommended for production run files and
+FASTQs. See [`templates/README.md`](templates/README.md) for the complete input contract.
 
 ### 3.1 Main settings
 
+The production template exposes a small run-specific edit surface:
+
 ```yaml
-samples: /path/to/run/samples.tsv        # library sheet (§2)
-output:  /path/to/run/output             # run-wise output root
-tmpdir:  /path/to/run/output/intermediate/tmp  # optional STAR scratch override
+samples: /path/to/run/samples.tsv
+output:  /path/to/run/output
+# tmpdir: /path/to/fast/scratch/run_name   # optional; otherwise <output>/intermediate/tmp
 
 reference:
+  mode: gdc
   dir: resources/gdc
   genome_fasta: GRCh38.d1.vd1.fa
   gtf:          gencode.v36.annotation.gtf
   star_index:   star-2.7.5c_GRCh38.d1.vd1_gencode.v36
   sjdb_overhang: 100
 ```
+
+The template also contains the pinned GDC URLs and full STAR recipe. For harmonized production
+runs, users normally edit `samples`, `output`, optionally `tmpdir`, the reference directory if
+resources live elsewhere, and execution-only settings such as `star.threads`; the GDC resource
+identifiers and `star.gdc_params` should remain unchanged.
 
 The run output root has a fixed three-part contract:
 
@@ -330,21 +358,26 @@ pulling containers. Read the job-count summary that is printed at the bottom of 
 
 ### 4.2 Launching the pipeline
 
-Depending on the **infrastructure** of your working environment, the **snakemake workflow** can be edited to use a **profile** personalised to your architecture: **HPC cluster** or **local working station** (see the steps below):
+The biological run interface (`config.yaml` + `samples.tsv`) is separate from the site's
+Snakemake execution profile. The maintained `profiles/slurm/` and `profiles/local/` directories
+are starting points; for site-specific settings, copy the relevant profile and edit the copy
+rather than modifying the maintained repository profile in place.
 
 **On an HPC cluster (SLURM):**
 
 ```bash
-snakemake --profile profiles/slurm \
+cp -r profiles/slurm /path/to/run/profile.slurm   # once per site/run setup; then edit the copy
+
+snakemake --profile /path/to/run/profile.slurm \
           --configfile /path/to/run/config.yaml \
           --rerun-incomplete --keep-going
 ```
-- `--profile profiles/slurm` reads `profiles/slurm/config.yaml` (SLURM executor, apptainer-only deployment, `jobs: 50`, `rerun-triggers: mtime`).
+- The copied profile starts from the maintained SLURM settings (SLURM executor, Apptainer-only deployment, job/latency defaults, `rerun-triggers: mtime`).
 - `--rerun-incomplete` redoes any rule whose outputs have been marked as incomplete.
 - `--keep-going` — when one sample's job fails, keep scheduling the others.
 
-> **Adapt the SLURM profile to your cluster** — edit `profiles/slurm/config.yaml`:
-> - **partition/queue:** `default-resources` sets `slurm_partition=single`. Change `single` to your cluster's partition name (and add `slurm_account=<your_account>` if your site requires an account).
+> **Adapt the copied SLURM profile to your cluster** — edit `/path/to/run/profile.slurm/config.yaml`:
+> - **partition/queue:** `default-resources` currently sets `slurm_partition=batch`. Change `batch` to your cluster's partition name (and add `slurm_account=<your_account>` if your site requires an account).
 > - **container bind path:** `apptainer-args: "--bind <path>"` must point at a directory that contains your FASTQs, the references, and the results, so containers can read/write them. Set it to the parent of your data (e.g. `--bind /scratch/<you>` or several `--bind` paths).
 > - optionally tune `jobs`, `latency-wait`, and `default-resources` (`mem_mb`, `runtime`) for your queue limits.
 >
@@ -354,13 +387,16 @@ snakemake --profile profiles/slurm \
 **On a local workstation:**
 
 ```bash
-snakemake --profile profiles/local \
+cp -r profiles/local /path/to/run/profile.local   # once, then edit the copy
+
+snakemake --profile /path/to/run/profile.local \
           --configfile /path/to/run/config.yaml \
           --rerun-incomplete --keep-going
 ```
-`profiles/local` uses `cores: 16, jobs: 16` — tune to your machine, and set its `apptainer-args` bind to your
-paths. The human STAR index needs **~30 GB RAM**, so keep concurrent STAR jobs low (e.g. one at a time on a
-96 GB box).
+The copied local profile starts with `cores: 16, jobs: 16` — tune it to your machine and set
+its `apptainer-args` bind to your paths. The human STAR index needs **~30 GB RAM**, so keep
+concurrent STAR jobs low (e.g. one at a time on a 96 GB box). A dedicated user-facing profile
+template will be handled separately from the biological run templates.
 
 > **Long runs:** keep the controller inside `tmux` (§1.1), or submit the Snakemake controller itself as a
 > scheduler job so it survives login-node reboots or SSH disconnects.
@@ -378,7 +414,7 @@ ls logs/slurm/                                               # per-rule SLURM lo
 > This is good for small tests or debugging.
 
 ```bash
-snakemake --cores 4 --use-singularity --configfile /path/to/run/config.yaml
+snakemake --cores 4 --software-deployment-method apptainer --configfile /path/to/run/config.yaml
 ```
 
 Skip `--profile profiles/slurm`. Only for small tests — STAR alignment of the human genome needs ~30 GB RAM.

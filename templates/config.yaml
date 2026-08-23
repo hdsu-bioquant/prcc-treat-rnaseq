@@ -1,0 +1,96 @@
+#==============================================================================#
+# pRCC-RNA-Seq — production run configuration template
+#==============================================================================#
+# Copy this file to a run-specific location and edit the USER EDITS section.
+# Do not edit templates/config.yaml in place.
+#
+# Recommended launch directory: repository root.
+# Relative paths in this file and in samples.tsv are resolved relative to the
+# current working directory, NOT relative to the template/config file itself.
+# For production runs, absolute paths are therefore recommended for run-specific
+# files and FASTQs.
+#==============================================================================#
+
+#------------------------------------------------------------------------------#
+# RELEASE IDENTITY — maintainer-owned
+#------------------------------------------------------------------------------#
+# Updated by pipeline maintainers for tagged releases; users should not invent or
+# modify this value for a harmonized run.
+pipeline_release: "development"
+
+#------------------------------------------------------------------------------#
+# USER EDITS — required for each run
+#------------------------------------------------------------------------------#
+
+# One row = one sequencing library. Start from templates/samples.tsv.
+samples: /path/to/run/samples.tsv
+
+# Run-wise output root. The workflow creates results/, restricted/, intermediate/.
+output: /path/to/run/output
+
+# Optional STAR scratch override. If omitted, defaults to <output>/intermediate/tmp.
+# tmpdir: /path/to/fast/scratch/pRCC-RNA-Seq/run_name
+
+# Exact GDC reference bundle location. If the files are already present here,
+# Snakemake uses them. In GDC mode, missing resources can be fetched by the
+# reference rules from the pinned GDC URLs below.
+reference:
+  mode: gdc
+  dir: resources/gdc
+
+  # Pinned GDC resources — do not change for harmonized production runs.
+  genome_fasta_tar_url: "https://api.gdc.cancer.gov/data/254f697d-310d-4d7d-a27b-27fbf767a834"
+  star_index_tgz_url:   "https://api.gdc.cancer.gov/data/c0008693-0583-4eac-bd5c-583070763893"
+  gtf_gz_url:           "https://api.gdc.cancer.gov/data/be002a2c-3b27-43f3-9e0f-fd47db92a6b5"
+  genome_fasta: GRCh38.d1.vd1.fa
+  gtf: gencode.v36.annotation.gtf
+  star_index: star-2.7.5c_GRCh38.d1.vd1_gencode.v36
+  sjdb_overhang: 100
+
+#------------------------------------------------------------------------------#
+# HARMONIZATION SETTINGS
+#------------------------------------------------------------------------------#
+# These settings define the standard production analysis. Change them only for
+# an explicitly documented non-harmonized analysis.
+
+star:
+  # Safe execution/resource setting; tune to the site if needed.
+  threads: 8
+
+  # GDC mRNA STAR recipe. Do not alter for consortium-harmonized production runs.
+  gdc_params: >-
+    --alignIntronMax 1000000 --alignIntronMin 20 --alignMatesGapMax 1000000
+    --alignSJDBoverhangMin 1 --alignSJoverhangMin 8 --alignSoftClipAtReferenceEnds Yes
+    --chimJunctionOverhangMin 15 --chimMainSegmentMultNmax 1
+    --chimOutType Junctions SeparateSAMold WithinBAM SoftClip --chimSegmentMin 15
+    --genomeLoad NoSharedMemory --limitSjdbInsertNsj 1200000
+    --outFilterIntronMotifs None --outFilterMatchNminOverLread 0.33
+    --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.1
+    --outFilterMultimapNmax 20 --outFilterScoreMinOverLread 0.33
+    --outFilterType BySJout --outSAMattributes NH HI AS nM NM ch
+    --outSAMstrandField intronMotif --outSAMtype BAM Unsorted --outSAMunmapped Within
+    --quantMode TranscriptomeSAM GeneCounts --twopassMode Basic
+
+full_length:
+  # false matches the GDC-style default (STAR soft clipping; no separate adapter trim).
+  trim_adapters: false
+
+quantseq:
+  # Standard QuantSeq poly(A)/adapter right trimming.
+  bbduk_polyA: true
+
+#------------------------------------------------------------------------------#
+# OPTIONAL MODULES — off by default
+#------------------------------------------------------------------------------#
+# These modules are not part of the core expression harmonization contract.
+# Fusion / TE / ASE outputs remain under restricted/ by default.
+modules:
+  fusion: false
+  te: false
+  ase: false
+  rseqc: false
+
+# Required only when the corresponding module is enabled.
+ctat_genome_lib: ""
+te_gtf: ""
+ase_germline_vcf: ""

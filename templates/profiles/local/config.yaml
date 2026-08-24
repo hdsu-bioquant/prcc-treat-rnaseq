@@ -1,0 +1,46 @@
+#==============================================================================#
+# pRCC-RNA-Seq — local workstation execution profile template
+#==============================================================================#
+# Copy this directory to a user/site-specific location and edit the COPY.
+# Do not edit templates/profiles/local/config.yaml in place.
+#
+# Example:
+#   cp -r templates/profiles/local ~/.config/snakemake/prcc-rnaseq-local
+#   snakemake --profile ~/.config/snakemake/prcc-rnaseq-local \
+#             --configfile /path/to/run/config.yaml
+#==============================================================================#
+
+# Maximum CPU cores that Snakemake may use concurrently on this workstation.
+# Set this to a value appropriate for the machine and leave headroom for the OS.
+cores: 16
+
+# Total memory available to the workflow scheduler, in MB.
+# This is a LOCAL scheduling limit: Snakemake will avoid concurrently starting
+# jobs whose declared mem_mb requirements exceed this total. The current STAR
+# alignment rules request 64000 MB per job, so this value must be >= 64000 for a
+# production human run. A 80–96 GB or larger workstation is recommended.
+resources:
+  mem_mb: 96000
+
+# Filesystems can be slow to expose newly created files, especially external or
+# network-mounted disks. Increase if your workstation storage has high latency.
+latency-wait: 60
+
+rerun-incomplete: true
+printshellcmds: true
+rerun-triggers: "mtime"
+
+# Every workflow tool is executed from the pinned Apptainer/Singularity image.
+software-deployment-method:
+  - apptainer
+
+# Usually not needed when the repository, FASTQs, references and output are
+# beneath paths Apptainer binds automatically (for example $HOME and the current
+# working directory). If data live elsewhere, uncomment and edit, e.g.:
+# apptainer-args: "--bind /data,/scratch,/reference"
+
+# Fallback resources for lightweight rules that do not declare their own values.
+# Most compute-heavy pRCC-RNA-Seq rules define mem_mb/runtime explicitly.
+default-resources:
+  mem_mb: 4000
+  runtime: 60

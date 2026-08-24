@@ -6,8 +6,8 @@
 #  Assay-aware: full-length poly-A and Lexogen QuantSeq 3'; UMI is library-level.     #
 #                                                                              #
 #  Run:  snakemake -n --configfile /path/to/run/config.yaml       # dry-run     #
-#        snakemake --profile profiles/slurm --configfile /path/to/run/config.yaml #
-#        snakemake --profile profiles/local --configfile /path/to/run/config.yaml #
+#        snakemake --profile /path/to/copied/slurm-profile --configfile /path/to/run/config.yaml #
+#        snakemake --profile /path/to/copied/local-profile --configfile /path/to/run/config.yaml #
 #==============================================================================#
 
 include: "rules/common.smk"

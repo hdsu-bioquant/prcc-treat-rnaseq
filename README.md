@@ -13,6 +13,7 @@ renal-cell carcinoma (pRCC) harmonization effort (**pRCC-TREAT**)
 - cross-protocol normalization, batch correction, and differential expression are downstream
 - canonical outputs: per-library gene-expression tables + run-level raw-count matrix + standardized QC
 - official run templates: [`templates/config.yaml`](templates/config.yaml) + [`templates/samples.tsv`](templates/samples.tsv); see [`templates/README.md`](templates/README.md)
+- official execution-profile templates: local workstation + SLURM HPC under [`templates/profiles/`](templates/profiles/README.md)
 
 ```
         FULL-LENGTH poly-A (PE)                    QUANTSEQ 3' tag (SE)
@@ -102,8 +103,8 @@ conda create -y -n snakemake-9.19.0 \
 ```
 
 Notes:
-- `snakemake-executor-plugin-slurm` is **required** to dispatch jobs via `--profile profiles/slurm`. Without it, the SLURM profile cannot submit jobs. On a different scheduler, install the matching plugin instead (e.g. `snakemake-executor-plugin-cluster-generic`, `-lsf`, `-drmaa`).
-- Snakemake 8 is supported as well (`'snakemake>=8'`).
+- `snakemake-executor-plugin-slurm` is **required** to dispatch jobs via a copied `templates/profiles/slurm/` profile. Without it, the SLURM profile cannot submit jobs. On a different scheduler, install the matching plugin instead (e.g. `snakemake-executor-plugin-cluster-generic`, `-lsf`, `-drmaa`).
+- Local execution supports Snakemake 8/9; the current SLURM executor plugin requires Snakemake >=8.6. The consortium-tested controller version is 9.19.0.
 
 Verify:
 ```bash
@@ -358,55 +359,66 @@ pulling containers. Read the job-count summary that is printed at the bottom of 
 
 ### 4.2 Launching the pipeline
 
-The biological run interface (`config.yaml` + `samples.tsv`) is separate from the site's
-Snakemake execution profile. The maintained `profiles/slurm/` and `profiles/local/` directories
-are starting points; for site-specific settings, copy the relevant profile and edit the copy
-rather than modifying the maintained repository profile in place.
+The biological run interface (`config.yaml` + `samples.tsv`) is separate from the compute
+environment. Official copyable execution profiles are provided under
+[`templates/profiles/`](templates/profiles/README.md). Copy and edit the appropriate profile
+**once per workstation/user/site**, then reuse it across runs. Do not put scheduler or local
+hardware settings into the biological run configuration.
 
 **On an HPC cluster (SLURM):**
 
 ```bash
-cp -r profiles/slurm /path/to/run/profile.slurm   # once per site/run setup; then edit the copy
+mkdir -p ~/.config/snakemake
+cp -r templates/profiles/slurm ~/.config/snakemake/prcc-rnaseq-slurm   # once, then edit the copy
 
-snakemake --profile /path/to/run/profile.slurm \
+snakemake --profile ~/.config/snakemake/prcc-rnaseq-slurm \
           --configfile /path/to/run/config.yaml \
-          --rerun-incomplete --keep-going
+          --keep-going
 ```
-- The copied profile starts from the maintained SLURM settings (SLURM executor, Apptainer-only deployment, job/latency defaults, `rerun-triggers: mtime`).
-- `--rerun-incomplete` redoes any rule whose outputs have been marked as incomplete.
-- `--keep-going` — when one sample's job fails, keep scheduling the others.
 
-> **Adapt the copied SLURM profile to your cluster** — edit `/path/to/run/profile.slurm/config.yaml`:
-> - **partition/queue:** `default-resources` currently sets `slurm_partition=batch`. Change `batch` to your cluster's partition name (and add `slurm_account=<your_account>` if your site requires an account).
-> - **container bind path:** `apptainer-args: "--bind <path>"` must point at a directory that contains your FASTQs, the references, and the results, so containers can read/write them. Set it to the parent of your data (e.g. `--bind /scratch/<you>` or several `--bind` paths).
-> - optionally tune `jobs`, `latency-wait`, and `default-resources` (`mem_mb`, `runtime`) for your queue limits.
->
-> A non-SLURM scheduler (SGE/LSF/PBS) needs the matching `snakemake-executor-plugin-*` (§0.3) and an equivalent profile.
+The SLURM template enables the Snakemake SLURM executor and Apptainer deployment. Tune `jobs`
+to site limits and, when required, uncomment the site's `slurm_partition` / `slurm_account`.
+Add `apptainer-args` only when FASTQs, references, output, scratch, or the repository live on
+filesystem roots that are not automatically visible inside containers. The
+`snakemake-executor-plugin-slurm` package is required (§0.3).
 
+> A non-SLURM scheduler (SGE/LSF/PBS) needs the matching `snakemake-executor-plugin-*` (§0.3)
+> and an equivalent site profile; those schedulers are not part of the current official
+> template set.
 
 **On a local workstation:**
 
 ```bash
-cp -r profiles/local /path/to/run/profile.local   # once, then edit the copy
+mkdir -p ~/.config/snakemake
+cp -r templates/profiles/local ~/.config/snakemake/prcc-rnaseq-local   # once, then edit the copy
 
-snakemake --profile /path/to/run/profile.local \
+snakemake --profile ~/.config/snakemake/prcc-rnaseq-local \
           --configfile /path/to/run/config.yaml \
-          --rerun-incomplete --keep-going
+          --keep-going
 ```
-The copied local profile starts with `cores: 16, jobs: 16` — tune it to your machine and set
-its `apptainer-args` bind to your paths. The human STAR index needs **~30 GB RAM**, so keep
-concurrent STAR jobs low (e.g. one at a time on a 96 GB box). A dedicated user-facing profile
-template will be handled separately from the biological run templates.
+
+Tune `cores` and `resources.mem_mb` to the workstation. The current STAR alignment rules
+request 64,000 MB per job, so the local memory limit must be at least 64,000 MB for a human
+production run; 80–96 GB or more is the practical target. See
+[`templates/profiles/README.md`](templates/profiles/README.md) for bind-path, memory, and
+profile-validation guidance.
 
 > **Long runs:** keep the controller inside `tmux` (§1.1), or submit the Snakemake controller itself as a
 > scheduler job so it survives login-node reboots or SSH disconnects.
 
 ### 4.3 Monitoring progress
 
+The Snakemake controller log is available for both execution modes:
+
 ```bash
-squeue -u "$USER"                                             # SLURM queue (adjust for your scheduler)
-tail -f .snakemake/log/$(ls -t .snakemake/log/*.snakemake.log | head -1)   # controller log
-ls logs/slurm/                                               # per-rule SLURM logs
+tail -f .snakemake/log/$(ls -t .snakemake/log/*.snakemake.log | head -1)
+```
+
+On SLURM, also inspect the scheduler queue and the log directory configured in your copied
+SLURM profile (if `slurm-logdir` is enabled):
+
+```bash
+squeue -u "$USER"
 ```
 
 ### 4.4 Run locally without a scheduler
@@ -417,7 +429,7 @@ ls logs/slurm/                                               # per-rule SLURM lo
 snakemake --cores 4 --software-deployment-method apptainer --configfile /path/to/run/config.yaml
 ```
 
-Skip `--profile profiles/slurm`. Only for small tests — STAR alignment of the human genome needs ~30 GB RAM.
+This bypasses the official execution profiles and is intended only for small tests/debugging. For production, use a copied local or SLURM template from `templates/profiles/`.
 
 ---
 
@@ -544,13 +556,17 @@ in the canonical `gene_expression.tsv`. They remain `NA` for QuantSeq.
 
 ## 7. Reproducibility — containers and provenance
 
-Every rule declares a `container:` image, and the profiles run **Apptainer** only:
+Every rule declares a `container:` image, and the official execution-profile templates enable
+**Apptainer** deployment:
 
 ```yaml
 software-deployment-method:
   - apptainer
-apptainer-args: "--bind /path/that/contains/your/data/refs/output"   # set this for your site (see §4.2)
+# apptainer-args: "--bind /shared/data,/scratch,/reference"   # uncomment only when needed
 ```
+
+Site-specific bind roots belong in the copied execution profile, not the run config; see
+[`templates/profiles/README.md`](templates/profiles/README.md).
 
 The authoritative pinned software/container registry is
 `workflow/config/software_versions.yaml`. The table below is a human-readable overview.
@@ -570,7 +586,7 @@ Reference: **GRCh38.d1.vd1 + GENCODE v36 + GDC STAR 2.7.5c index**, all GDC-exac
 `_img()` prefers a local `containers/sif/<name>.sif` (pull once with `containers/pull_images.sh`, §0.6) and
 falls back to the `docker://` URI otherwise.
 
-The profiles set `rerun-triggers: mtime` — Snakemake re-runs a job only when its **input files** change (by
+The official profile templates set `rerun-triggers: mtime` — Snakemake re-runs a job only when its **input files** change (by
 mtime), not when a rule's code, parameters, or container reference changes. Editing comments or config
 therefore does not trigger a full rerun.
 

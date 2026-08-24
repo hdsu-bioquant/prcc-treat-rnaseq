@@ -34,20 +34,26 @@ snakemake \
   -n
 ```
 
-For a real execution, add the site's Snakemake profile, for example:
+For a real execution, use one of the official execution-profile templates in
+[`templates/profiles/`](profiles/README.md). Copy the appropriate profile once for the local
+compute environment, edit the copy, and reuse it across runs. For example:
 
 ```bash
+mkdir -p ~/.config/snakemake
+cp -r templates/profiles/local ~/.config/snakemake/prcc-rnaseq-local
+# or: cp -r templates/profiles/slurm ~/.config/snakemake/prcc-rnaseq-slurm
+
 snakemake \
   --snakefile workflow/Snakefile \
   --configfile /path/to/run/config.yaml \
-  --profile /path/to/site-or-run/profile \
-  --rerun-incomplete \
+  --profile ~/.config/snakemake/prcc-rnaseq-local \
   --keep-going
 ```
 
-The maintained `profiles/local/` and `profiles/slurm/` directories in the repository are
-starting points, not run metadata. Site-specific copies/profile templating are handled
-separately from this biological run interface.
+Execution profiles contain machine/site settings such as local CPU/RAM limits, SLURM
+submission limits, partition/account names, latency handling, and optional Apptainer bind
+paths. They are deliberately separate from this biological run interface and are not copied
+into the portable results package.
 
 ## 2. Path rules
 

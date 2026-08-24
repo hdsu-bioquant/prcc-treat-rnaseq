@@ -1,0 +1,52 @@
+#==============================================================================#
+# pRCC-RNA-Seq — SLURM HPC execution profile template
+#==============================================================================#
+# Copy this directory to a user/site-specific location and edit the COPY.
+# Do not edit templates/profiles/slurm/config.yaml in place.
+#
+# Requires Snakemake >=8.6 plus the SLURM executor plugin, for example:
+#   conda install -c conda-forge -c bioconda snakemake-executor-plugin-slurm
+#
+# Example:
+#   cp -r templates/profiles/slurm ~/.config/snakemake/prcc-rnaseq-slurm
+#   snakemake --profile ~/.config/snakemake/prcc-rnaseq-slurm \
+#             --configfile /path/to/run/config.yaml
+#==============================================================================#
+
+executor: slurm
+
+# Maximum number of cluster jobs Snakemake may have active/submitted at once.
+# Tune to your site's scheduler/user limits.
+jobs: 50
+
+# Shared HPC filesystems often need a longer visibility grace period.
+latency-wait: 120
+
+rerun-incomplete: true
+printshellcmds: true
+rerun-triggers: "mtime"
+
+# Every workflow tool is executed from the pinned Apptainer/Singularity image.
+software-deployment-method:
+  - apptainer
+
+# If the repository, FASTQs, references or output live outside paths automatically
+# visible inside Apptainer, uncomment and edit. Multiple bind roots are allowed.
+# apptainer-args: "--bind /shared/data,/scratch,/reference"
+
+# Optional SLURM log location. If enabled, choose a path visible from the login
+# node and compute nodes. Infrastructure logs are not part of results/.
+# slurm-logdir: "/path/to/run-or-site/logs/slurm"
+# slurm-keep-successful-logs: true
+
+# Fallback resources for rules that do not declare their own values. The workflow
+# already declares mem_mb and runtime for compute-heavy rules; the SLURM executor
+# converts those per-job resources into scheduler requests.
+default-resources:
+  mem_mb: 4000
+  runtime: 60
+
+  # Uncomment only when your site requires/uses these settings. If omitted,
+  # SLURM's configured defaults are used.
+  # slurm_partition: "compute"
+  # slurm_account: "project_account"

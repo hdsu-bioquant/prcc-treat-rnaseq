@@ -72,6 +72,26 @@ A successful run ends with:
 Synthetic smoke test PASSED.
 ```
 
+### Execution-environment independence
+
+The synthetic qualification deliberately does **not** use the production workstation or
+SLURM profile templates. `run_test.sh` disables inherited Snakemake global/workflow profiles
+and runs the fixed tiny DAG locally with two cores. This keeps the qualification procedure
+identical across partner sites and prevents site-specific scheduler/resource settings from
+changing what is being tested.
+
+On an HPC system where computation on the login node is not permitted, obtain a compute-node
+allocation (interactive or batch, according to local policy) and run the same
+`bash tests/synthetic/run_test.sh` command there. The site-specific production profile is
+validated separately by `tests/real/`, where execution is intentionally production-like.
+
+The rule-level `mem_mb` values remain the production workflow's scheduling declarations. The
+synthetic test does not set a global `mem_mb` scheduling limit, so those declarations do not
+reserve that amount of physical RAM during direct local execution. Actual memory use is that
+of the miniature synthetic reference and tiny inputs. A 32-GB workstation is therefore a
+reasonable environment for this qualification, but passing it does **not** qualify that
+machine for full human GDC-scale processing.
+
 ## What a successful synthetic run looks like
 
 The test uses the same output contract as a normal analysis:
@@ -172,6 +192,8 @@ Equivalent manual execution from the repository root is:
 snakemake \
   --snakefile workflow/Snakefile \
   --configfile tests/synthetic/config.yaml \
+  --profile none \
+  --workflow-profile none \
   --cores 2 \
   --software-deployment-method apptainer \
   --printshellcmds

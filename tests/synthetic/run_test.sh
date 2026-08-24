@@ -81,11 +81,20 @@ rm -f "$TEST_DIR/reference/gene_lengths.tsv"
 echo
 
 echo "Running synthetic Snakemake smoke test..."
+# Keep the qualification independent of production execution profiles while
+# making the repository explicitly writable inside Apptainer. All synthetic
+# inputs, references and outputs live beneath REPO_ROOT, so no site-specific
+# storage bind is required for this test.
+APPTAINER_TEST_ARGS="--bind \"${REPO_ROOT}:${REPO_ROOT}\""
+
 snakemake \
     --snakefile workflow/Snakefile \
     --configfile "$TEST_DIR/config.yaml" \
+    --profile none \
+    --workflow-profile none \
     --cores 2 \
     --software-deployment-method apptainer \
+    --apptainer-args "$APPTAINER_TEST_ARGS" \
     --printshellcmds
 
 echo

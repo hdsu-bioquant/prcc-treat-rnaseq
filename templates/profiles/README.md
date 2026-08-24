@@ -162,11 +162,32 @@ snakemake --snakefile workflow/Snakefile --configfile /path/to/run/config.yaml \
 ```
 
 Before analyzing consortium data on a new installation, run the frozen synthetic qualification
-test described in `tests/synthetic/README.md`. The synthetic test deliberately uses its own
-small test configuration; it validates the workflow and output contract independently of a
-site's production profile.
+test described in `tests/synthetic/README.md`. That test is intentionally independent of these
+production profiles: every partner runs the same fixed two-core synthetic workflow. The site's
+actual copied local/SLURM profile is exercised later by the realistic `tests/real/`
+production-style qualification.
 
-## 6. What belongs where
+## 6. Resource expectations
+
+Execution-profile resources describe machine/scheduler capacity; rule resources describe the
+requirements of individual jobs. Do not lower a rule's production memory request merely to fit
+a smaller machine.
+
+Current supported planning targets are:
+
+| Use case | CPU | Memory / scheduling expectation |
+|---|---:|---|
+| Frozen synthetic qualification | fixed at 2 cores | tiny synthetic reference; a 32-GB workstation is comfortably suitable for testing |
+| Human GDC run on one workstation | at least 4 usable cores | must be able to schedule a 64,000-MB STAR job |
+| Recommended human workstation | 8+ usable cores | approximately 80–96 GB+ physical RAM to leave operating-system headroom |
+| Human GDC run on SLURM | site-dependent | selected worker nodes/partition must satisfy the workflow's per-job resource requests |
+
+The synthetic row is an installation/regression target, **not** a statement that 32 GB is
+sufficient for production human alignment. Precise production peak-RSS/runtime values should
+be refined from the realistic integration test and real consortium runs rather than inferred
+from the miniature fixture.
+
+## 7. What belongs where
 
 Keep these concepts separate:
 
@@ -174,9 +195,9 @@ Keep these concepts separate:
 |---|---|---|
 | `templates/config.yaml` → copied run config | biological/scientific run settings + run paths | one per run |
 | `templates/samples.tsv` → copied sample sheet | sequencing-library metadata + FASTQ paths | one per run |
-| `templates/profiles/local/` | workstation execution settings | reused across runs |
-| `templates/profiles/slurm/` | SLURM/site execution settings | reused across runs |
-| repository `profiles/` | maintained/development execution profiles | repository-internal; not the user contract |
+| `templates/profiles/local/` | official workstation profile template | copied once per workstation/user |
+| `templates/profiles/slurm/` | official SLURM profile template | copied once per site/user |
+| `~/.config/snakemake/prcc-rnaseq-*` (or another external path) | actual site/user profile copy | reused across runs; not tracked in this repository |
 
 Do not put patient/library metadata, FASTQ lists, or scientific STAR parameters into an
 execution profile. Conversely, scheduler partition/account names and site-specific Apptainer

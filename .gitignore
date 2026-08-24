@@ -37,8 +37,6 @@ tests/real/output/
 logs/
 *.log
 tmp/
-.cache/
-.java/
 
 # Python / editor cruft
 __pycache__/

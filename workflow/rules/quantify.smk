@@ -3,7 +3,7 @@
 # UMI-bearing libraries additionally receive molecule-level HTSeq counts.
 
 # ---- UMI molecule counts ---------------------------------------------------#
-rule htseq_dedup_fl:
+rule htseq_dedup_umi:
     input:
         bam = join(RESTRICTED, "libraries/{library}/alignments/umi_dedup.bam"),
         gtf = GTF
@@ -12,28 +12,7 @@ rule htseq_dedup_fl:
     params:
         strand = htseq_strand
     wildcard_constraints:
-        library = FL_UMI_LIBRARY_PATTERN
-    threads: 2
-    container: IMG["htseq"]
-    resources:
-        mem_mb = 8000, runtime = 240
-    shell:
-        r"""
-        mkdir -p "$(dirname {output.counts})"
-        htseq-count -f bam -r pos -s {params.strand} -t exon -i gene_id -m union \
-          --nonunique none {input.bam} {input.gtf} > {output.counts}
-        """
-
-rule htseq_dedup_qs:
-    input:
-        bam = join(RESTRICTED, "libraries/{library}/alignments/umi_dedup.bam"),
-        gtf = GTF
-    output:
-        counts = temp(join(INTERMEDIATE, "libraries/{library}/quantification/umi_molecule_counts.tsv"))
-    params:
-        strand = htseq_strand
-    wildcard_constraints:
-        library = QS_UMI_LIBRARY_PATTERN
+        library = UMI_LIBRARY_PATTERN
     threads: 2
     container: IMG["htseq"]
     resources:

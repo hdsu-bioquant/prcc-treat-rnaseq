@@ -79,7 +79,7 @@ rule run_metadata:
         # arbitrary extra metadata columns are copied implicitly.
         cols = [
             "library_id", "sample_id", "assay", "layout", "strandedness",
-            "has_umi", "umi_pattern", "umi_location",
+            "has_umi", "umi_pattern", "umi_location", "umi_discard_bases",
         ]
         samples[cols].to_csv(output.libraries, sep="\t", index=False)
 

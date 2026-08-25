@@ -202,11 +202,19 @@ copies; [`templates/README.md`](templates/README.md) is the authoritative field-
 The sample sheet is a **tab-separated file with a header row**. One row represents one
 **sequencing library**. The run-specific config points to this file via `samples:`.
 
-Required columns:
+Always-required columns:
 
 ```
-library_id  sample_id  assay  layout  strandedness  fq1  fq2  has_umi  umi_pattern  umi_location
+library_id  sample_id  assay  layout  strandedness  fq1  fq2  has_umi
 ```
+
+If any library has `has_umi=true`, the sheet must additionally contain:
+
+```
+umi_pattern  umi_location  umi_discard_bases
+```
+
+An all-non-UMI sheet may omit those three UMI-detail columns entirely.
 
 | Column | Meaning / allowed values |
 |---|---|
@@ -218,8 +226,9 @@ library_id  sample_id  assay  layout  strandedness  fq1  fq2  has_umi  umi_patte
 | `fq1` | Path to R1/single-end FASTQ (`.fastq`, `.fastq.gz`, `.fq`, `.fq.gz`). |
 | `fq2` | Path to R2 for paired-end libraries; use `-` or leave empty for single-end libraries. |
 | `has_umi` | `true` \| `false`. UMI handling is a **library property**, independent of assay. |
-| `umi_pattern` | UMI-tools extraction pattern, e.g. `NNNNNN`; required when `has_umi=true`, otherwise `-`. |
-| `umi_location` | Currently `read1_start` for UMI libraries; otherwise `-`. |
+| `umi_pattern` | Pipeline-native fixed-length UMI description using one or more `N` characters (for example `NNNNNN`); required when `has_umi=true`. |
+| `umi_location` | `read1_start` or `read2_start`; `read2_start` requires a paired library. |
+| `umi_discard_bases` | Non-negative number of additional bases immediately after the UMI to remove; `0` means none. |
 
 Additional metadata columns (for example `batch`, `site`, `patient_id`, `model_id`) are
 allowed and preserved in the loaded table, but do not currently control workflow routing.
@@ -230,15 +239,15 @@ numbers, `.`, `_`, `-`).
 Example:
 
 ```
-library_id  sample_id  assay        layout  strandedness  fq1                    fq2                    has_umi  umi_pattern  umi_location  batch
-FL_01       S01        full_length  paired  reverse       /abs/S01_R1.fastq.gz   /abs/S01_R2.fastq.gz   false    -            -             run1
-QS_01       S01        quantseq     single  forward       /abs/S01_QS.fastq.gz   -                      true     NNNNNN       read1_start   run2
+library_id  sample_id  assay        layout  strandedness  fq1                    fq2                    has_umi  umi_pattern  umi_location  umi_discard_bases  batch
+FL_01       S01        full_length  paired  reverse       /abs/S01_R1.fastq.gz   /abs/S01_R2.fastq.gz   false    -            -             -                  run1
+QS_01       S01        quantseq     single  forward       /abs/S01_QS.fastq.gz   -                      true     NNNNNN       read1_start   4                  run2
 ```
 
 The sheet is validated before the DAG is built. The pipeline fails immediately for, among
 other things, duplicate `library_id` values, missing FASTQs, invalid assay/layout/strand
-values, paired libraries without R2, inconsistent UMI fields, unsupported UMI locations,
-or accidental reuse of the same FASTQ in multiple library rows.
+values, paired libraries without R2, incomplete/unsupported UMI metadata, `read2_start` on
+a single-end library, or accidental reuse of the same FASTQ in multiple library rows.
 
 ---
 
@@ -544,11 +553,14 @@ timestamped provenance are intentionally excluded from validation hashes.
 
 ### 6.1 UMI-deduplicated molecule layer
 
-UMI handling is configured per library in the sample sheet. For `has_umi=true`,
-`umi_tools extract` moves the UMI into the read name before assay-specific preprocessing.
-After alignment, `umi_tools dedup` collapses PCR duplicates and HTSeq produces gene-level
-molecule counts. These values appear in the canonical per-library `umi_molecule_count`
-column and in `results/matrices/umi_molecule_counts.tsv`.
+UMI handling is configured per library in the sample sheet. For `has_umi=true`, the current
+supported class is one fixed-length contiguous UMI at the 5′ start of R1 or R2, optionally
+followed by a fixed number of adjacent bases to discard. The pipeline translates those
+semantic fields internally to `umi_tools extract`; partners do not provide UMI-tools regexes.
+The extracted UMI is moved into the read name before assay-specific preprocessing. After
+alignment, `umi_tools dedup` collapses PCR duplicates and HTSeq produces gene-level molecule
+counts. These values appear in the canonical per-library `umi_molecule_count` column and in
+`results/matrices/umi_molecule_counts.tsv`.
 
 Full-length FPKM / FPKM-UQ / TPM are no longer a separate optional output: they are columns
 in the canonical `gene_expression.tsv`. They remain `NA` for QuantSeq.

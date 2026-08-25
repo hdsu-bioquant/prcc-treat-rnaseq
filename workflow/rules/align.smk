@@ -1,31 +1,61 @@
-# align.smk — assay-aware preprocessing + STAR using the common library output layout
-# UMI extraction is library-level and may precede either assay branch.
+# align.smk — library-level UMI preprocessing + assay-aware preprocessing/STAR
+# UMI extraction is intentionally assay-independent and occurs before the assay split.
 
-# ---------------------------- full-length branch ----------------------------#
-rule umi_extract_fl:
+# ----------------------------- UMI preprocessing -----------------------------#
+rule umi_extract_paired:
     input:
-        fq1 = raw_fq1,
-        fq2 = raw_fq2
+        primary = umi_primary_input,
+        mate = umi_mate_input
     output:
         fq1 = temp(join(INTERMEDIATE, "libraries/{library}/preprocess/R1.umi.fastq.gz")),
         fq2 = temp(join(INTERMEDIATE, "libraries/{library}/preprocess/R2.umi.fastq.gz"))
     params:
-        pattern = lambda wc: library_umi_pattern(wc.library)
+        regex = lambda wc: library_umitools_extract_spec(wc.library).regex,
+        primary_out = umi_primary_output,
+        mate_out = umi_mate_output
     log:
         join(RESTRICTED, "libraries/{library}/logs/umi_extract.log")
     wildcard_constraints:
-        library = FL_UMI_LIBRARY_PATTERN
+        library = PAIRED_UMI_LIBRARY_PATTERN
+    container: IMG["umitools"]
+    resources:
+        mem_mb = 8000, runtime = 240
+    shell:
+        # The UMI-bearing mate is presented as UMI-tools read 1. For read2_start
+        # libraries, inputs/outputs are therefore swapped internally and written
+        # back to the canonical R1/R2 workflow paths.
+        r"""
+        mkdir -p "$(dirname {output.fq1})" "$(dirname {log})"
+        umi_tools extract --extract-method=regex \
+          --stdin {input.primary} --bc-pattern='{params.regex}' \
+          --stdout {params.primary_out} \
+          --read2-in {input.mate} --read2-out {params.mate_out} \
+          --ignore-read-pair-suffixes --log {log}
+        """
+
+rule umi_extract_single:
+    input:
+        fq1 = umi_primary_input
+    output:
+        fq1 = temp(join(INTERMEDIATE, "libraries/{library}/preprocess/R1.umi.fastq.gz"))
+    params:
+        regex = lambda wc: library_umitools_extract_spec(wc.library).regex
+    log:
+        join(RESTRICTED, "libraries/{library}/logs/umi_extract.log")
+    wildcard_constraints:
+        library = SINGLE_UMI_LIBRARY_PATTERN
     container: IMG["umitools"]
     resources:
         mem_mb = 8000, runtime = 240
     shell:
         r"""
         mkdir -p "$(dirname {output.fq1})" "$(dirname {log})"
-        umi_tools extract --stdin {input.fq1} --bc-pattern={params.pattern} \
-          --stdout {output.fq1} --read2-in {input.fq2} --read2-out {output.fq2} \
-          --ignore-read-pair-suffixes --log {log}
+        umi_tools extract --extract-method=regex \
+          --stdin {input.fq1} --bc-pattern='{params.regex}' \
+          --stdout {output.fq1} --log {log}
         """
 
+# ---------------------------- full-length branch ----------------------------#
 rule fastp_fl:
     # OFF by default (GDC does not trim). If enabled, UMI extraction happens first.
     input:
@@ -101,47 +131,7 @@ rule sort_index_fl:
         samtools index {output.bam}
         """
 
-rule umi_dedup_fl:
-    input:
-        bam = join(RESTRICTED, "libraries/{library}/alignments/genomic.sorted.bam"),
-        bai = join(RESTRICTED, "libraries/{library}/alignments/genomic.sorted.bam.bai")
-    output:
-        bam = join(RESTRICTED, "libraries/{library}/alignments/umi_dedup.bam")
-    log:
-        join(RESTRICTED, "libraries/{library}/logs/umi_dedup.log")
-    wildcard_constraints:
-        library = FL_UMI_LIBRARY_PATTERN
-    container: IMG["umitools"]
-    resources:
-        mem_mb = 16000, runtime = 240
-    shell:
-        r"""
-        mkdir -p "$(dirname {output.bam})" "$(dirname {log})"
-        umi_tools dedup --paired -I {input.bam} -S {output.bam} --log {log}
-        """
-
 # ------------------------------ QuantSeq branch -----------------------------#
-rule umi_extract_qs:
-    input:
-        fq1 = raw_fq1
-    output:
-        fq = temp(join(INTERMEDIATE, "libraries/{library}/preprocess/R1.umi.fastq.gz"))
-    params:
-        pattern = lambda wc: library_umi_pattern(wc.library)
-    log:
-        join(RESTRICTED, "libraries/{library}/logs/umi_extract.log")
-    wildcard_constraints:
-        library = QS_UMI_LIBRARY_PATTERN
-    container: IMG["umitools"]
-    resources:
-        mem_mb = 8000, runtime = 240
-    shell:
-        r"""
-        mkdir -p "$(dirname {output.fq})" "$(dirname {log})"
-        umi_tools extract --stdin {input.fq1} --bc-pattern={params.pattern} \
-          --stdout {output.fq} --log {log}
-        """
-
 rule bbduk_qs:
     input:
         fq = qs_trim_input
@@ -217,21 +207,24 @@ rule sort_index_qs:
         samtools index {output.bam}
         """
 
-rule umi_dedup_qs:
+# ------------------------- assay-independent UMI dedup ----------------------#
+rule umi_dedup:
     input:
         bam = join(RESTRICTED, "libraries/{library}/alignments/genomic.sorted.bam"),
         bai = join(RESTRICTED, "libraries/{library}/alignments/genomic.sorted.bam.bai")
     output:
         bam = join(RESTRICTED, "libraries/{library}/alignments/umi_dedup.bam")
+    params:
+        paired = umi_dedup_paired_flag
     log:
         join(RESTRICTED, "libraries/{library}/logs/umi_dedup.log")
     wildcard_constraints:
-        library = QS_UMI_LIBRARY_PATTERN
+        library = UMI_LIBRARY_PATTERN
     container: IMG["umitools"]
     resources:
         mem_mb = 16000, runtime = 240
     shell:
         r"""
         mkdir -p "$(dirname {output.bam})" "$(dirname {log})"
-        umi_tools dedup -I {input.bam} -S {output.bam} --log {log}
+        umi_tools dedup {params.paired} -I {input.bam} -S {output.bam} --log {log}
         """

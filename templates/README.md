@@ -75,14 +75,23 @@ there.
 
 ## 3. `samples.tsv`: one row = one sequencing library
 
-The required columns are:
+The columns that are always required are:
 
 ```text
-library_id  sample_id  assay  layout  strandedness  fq1  fq2  has_umi  umi_pattern  umi_location
+library_id  sample_id  assay  layout  strandedness  fq1  fq2  has_umi
 ```
 
-The template contains two **example rows only**. Replace or delete them; do not run real
-analyses with the placeholder FASTQ paths.
+If at least one row has `has_umi=true`, the sheet must also contain all three UMI-detail
+columns:
+
+```text
+umi_pattern  umi_location  umi_discard_bases
+```
+
+If every row has `has_umi=false`, those three columns may be omitted completely. The official
+template includes them so it can be used for mixed runs. The two template rows are
+**examples only**; replace or delete them, and do not treat their UMI values as protocol
+defaults.
 
 | Column | Requirement | Meaning / allowed values |
 |---|---|---|
@@ -94,8 +103,9 @@ analyses with the placeholder FASTQ paths.
 | `fq1` | required | R1 or single-end FASTQ: `.fastq`, `.fastq.gz`, `.fq`, `.fq.gz`. |
 | `fq2` | conditional | Required for paired libraries. Use `-` (or empty) for single-end libraries. |
 | `has_umi` | required | `true` or `false`. UMI handling is library-specific and independent of assay. |
-| `umi_pattern` | conditional | UMI-tools extraction pattern, e.g. `NNNNNN`, when `has_umi=true`; otherwise `-`. |
-| `umi_location` | conditional | Currently only `read1_start` for UMI libraries; otherwise `-`. |
+| `umi_pattern` | conditional | Pipeline-native fixed-length UMI description. Currently one or more `N` characters only, e.g. `NNNNNN` or `NNNNNNNN`. Required when `has_umi=true`. |
+| `umi_location` | conditional | `read1_start` or `read2_start`. `read2_start` requires a paired-end library. Required when `has_umi=true`. |
+| `umi_discard_bases` | conditional | Non-negative integer number of additional bases immediately after the extracted UMI that must be removed but are not part of the molecular identifier. Required when `has_umi=true`; `0` means none. |
 
 ### Identifier rules
 
@@ -129,8 +139,9 @@ other things:
 - unsupported assay/layout/strandedness values;
 - paired libraries without R2 or single-end libraries with an R2 path;
 - missing FASTQs or unsupported FASTQ suffixes;
-- inconsistent UMI fields;
-- unsupported UMI location;
+- missing UMI-detail columns when UMI-bearing libraries are present;
+- incomplete, contradictory, or unsupported UMI metadata;
+- `read2_start` on a single-end library;
 - assigning the same FASTQ to more than one library row, including symlink-equivalent paths.
 
 ## 4. `config.yaml`
@@ -196,7 +207,21 @@ quantseq    + single
 
 UMI presence is independent of assay. A library with `has_umi=true` is routed through UMI
 extraction before its assay-specific preprocessing, then through UMI deduplication after
-alignment.
+alignment. The current supported UMI class is deliberately narrow: one fixed-length,
+contiguous UMI at the 5′ start of R1 or R2, optionally followed by a fixed number of
+additional bases to discard. For example:
+
+```text
+NNNNNN    read1_start    4
+NNNNNNNN  read1_start    0
+NNNNNNNN  read2_start    8
+```
+
+`umi_discard_bases` describes only how many adjacent bases to remove; it does not encode or
+validate their sequence. Partners provide these semantic fields rather than UMI-tools regexes.
+Other architectures (internal/3′/split/variable-length UMIs, for example) are not currently
+implemented and should not be represented by stretching these fields beyond their defined
+meaning.
 
 The canonical expression basis for both assays is STAR **unstranded raw GeneCounts**.
 `gene_expression.tsv` also retains both stranded STAR diagnostic count columns. Full-length

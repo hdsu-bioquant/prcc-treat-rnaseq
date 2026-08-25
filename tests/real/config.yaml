@@ -14,7 +14,7 @@
 # ---- Sample sheet ----------------------------------------------------------#
 # One row = one sequencing library. Required technical columns:
 # library_id, sample_id, assay, layout, strandedness, fq1, fq2,
-# has_umi, umi_pattern, umi_location. Extra metadata columns are allowed.
+# has_umi; UMI-detail columns (when present): umi_pattern, umi_location, umi_discard_bases. Extra metadata columns are allowed.
 samples: tests/real/samples.tsv
 
 # ---- Output / scratch ------------------------------------------------------#

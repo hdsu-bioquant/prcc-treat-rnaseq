@@ -50,6 +50,7 @@ _SCRIPT_DIR = os.path.abspath(os.path.join(workflow.basedir, "scripts"))
 if _SCRIPT_DIR not in sys.path:
     sys.path.insert(0, _SCRIPT_DIR)
 from sample_sheet import load_and_validate_samples
+from umi import compile_umitools_extract, parse_umi_spec
 
 samples = load_and_validate_samples(config["samples"])
 
@@ -62,14 +63,6 @@ def library_has_umi(library):
     return samples.loc[library, "has_umi"] == "true"
 
 
-def library_umi_pattern(library):
-    return samples.loc[library, "umi_pattern"]
-
-
-def library_umi_location(library):
-    return samples.loc[library, "umi_location"]
-
-
 def biological_sample_id(library):
     return samples.loc[library, "sample_id"]
 
@@ -78,15 +71,42 @@ def library_assay(library):
     return samples.loc[library, "assay"]
 
 
+def library_layout(library):
+    return samples.loc[library, "layout"]
+
+
 UMI_LIBRARIES = [lib for lib in LIBRARIES if library_has_umi(lib)]
-FL_UMI_LIBRARIES = [lib for lib in FL_LIBRARIES if library_has_umi(lib)]
-QS_UMI_LIBRARIES = [lib for lib in QS_LIBRARIES if library_has_umi(lib)]
+PAIRED_UMI_LIBRARIES = [lib for lib in UMI_LIBRARIES if library_layout(lib) == "paired"]
+SINGLE_UMI_LIBRARIES = [lib for lib in UMI_LIBRARIES if library_layout(lib) == "single"]
+
+# Sample-sheet validation has already guaranteed these fields are valid. Compile them
+# once here so workflow rules consume pipeline-native UMI specifications rather than
+# reinterpreting raw sample-sheet strings independently.
+UMI_SPECS = {
+    lib: parse_umi_spec(
+        samples.loc[lib, "umi_pattern"],
+        samples.loc[lib, "umi_location"],
+        samples.loc[lib, "umi_discard_bases"],
+    )
+    for lib in UMI_LIBRARIES
+}
+UMITOOLS_EXTRACT_SPECS = {lib: compile_umitools_extract(spec) for lib, spec in UMI_SPECS.items()}
+
+
+def library_umi_spec(library):
+    return UMI_SPECS[library]
+
+
+def library_umitools_extract_spec(library):
+    return UMITOOLS_EXTRACT_SPECS[library]
+
 
 LIBRARY_PATTERN = "|".join([re.escape(lib) for lib in LIBRARIES]) if LIBRARIES else "x"
 FL_LIBRARY_PATTERN = "|".join([re.escape(lib) for lib in FL_LIBRARIES]) if FL_LIBRARIES else "__no_fl_libraries__"
 QS_LIBRARY_PATTERN = "|".join([re.escape(lib) for lib in QS_LIBRARIES]) if QS_LIBRARIES else "__no_qs_libraries__"
-FL_UMI_LIBRARY_PATTERN = "|".join([re.escape(lib) for lib in FL_UMI_LIBRARIES]) if FL_UMI_LIBRARIES else "__no_fl_umi_libraries__"
-QS_UMI_LIBRARY_PATTERN = "|".join([re.escape(lib) for lib in QS_UMI_LIBRARIES]) if QS_UMI_LIBRARIES else "__no_qs_umi_libraries__"
+UMI_LIBRARY_PATTERN = "|".join([re.escape(lib) for lib in UMI_LIBRARIES]) if UMI_LIBRARIES else "__no_umi_libraries__"
+PAIRED_UMI_LIBRARY_PATTERN = "|".join([re.escape(lib) for lib in PAIRED_UMI_LIBRARIES]) if PAIRED_UMI_LIBRARIES else "__no_paired_umi_libraries__"
+SINGLE_UMI_LIBRARY_PATTERN = "|".join([re.escape(lib) for lib in SINGLE_UMI_LIBRARIES]) if SINGLE_UMI_LIBRARIES else "__no_single_umi_libraries__"
 
 wildcard_constraints:
     library = LIBRARY_PATTERN
@@ -111,6 +131,31 @@ def _rlib(library, *parts):
 
 def _plib(library, *parts):
     return join(RESULTS, "libraries", library, *parts)
+
+def umi_primary_input(wc):
+    spec = library_umitools_extract_spec(wc.library)
+    return samples.loc[wc.library, "fq1" if spec.umi_read == 1 else "fq2"]
+
+
+def umi_mate_input(wc):
+    spec = library_umitools_extract_spec(wc.library)
+    return samples.loc[wc.library, "fq2" if spec.umi_read == 1 else "fq1"]
+
+
+def umi_primary_output(wc):
+    spec = library_umitools_extract_spec(wc.library)
+    read = "R1" if spec.umi_read == 1 else "R2"
+    return _ilib(wc.library, "preprocess", f"{read}.umi.fastq.gz")
+
+
+def umi_mate_output(wc):
+    spec = library_umitools_extract_spec(wc.library)
+    read = "R2" if spec.umi_read == 1 else "R1"
+    return _ilib(wc.library, "preprocess", f"{read}.umi.fastq.gz")
+
+
+def umi_dedup_paired_flag(wc):
+    return "--paired" if library_layout(wc.library) == "paired" else ""
 
 
 # UMI extraction is independent of assay. QuantSeq then continues into its

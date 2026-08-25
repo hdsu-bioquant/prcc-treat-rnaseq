@@ -69,16 +69,16 @@ You only need this section the first time you ever use the pipeline. Subsequent 
 | **Container images** (pre-pulled) | §0.6 |
 | **Sample Sheet + FASTQ files** | §2 |
 
-The following resources are fetched automatically by the pipeline (large):
+The following large resources are installed once at each site:
 
 | Resource | Size | Notes |
 |---|---|---|
-| **resources/gdc/** | ~59 GB | GRCh38.d1.vd1 genome + GENCODE v36 GTF + GDC-built STAR 2.7.5c index. Downloaded once (§0.5). |
-| **containers/sif/** | ~1.4 GB | Pinned biocontainers pulled once to local `.sif` (§0.6). |
+| **GDC reference bundle** | ~59 GB | GRCh38.d1.vd1 genome + GENCODE v36 GTF + GDC-built STAR 2.7.5c index. Installed and verified before analysis (§0.5). |
+| **containers/sif/** | ~1.4 GB | Pinned biocontainers can be pulled once to local `.sif` (§0.6). |
 
 **The following software does *not* need to be installed:** Docker (Apptainer reads Docker images),
 STAR, samtools, HTSeq, UMI-tools, fastp, BBDuk, FastQC, MultiQC — these are all inside containers. The
-reference genome/annotation/index are downloaded from the GDC (§0.5).
+production reference genome/annotation/index are installed separately from normal workflow execution (§0.5).
 
 
 ### 0.2 Miniconda Installation (skip if already available)
@@ -125,22 +125,54 @@ apptainer --version                # or: singularity --version
 If your cluster does not use environment modules, just make sure `apptainer` (or `singularity`) is on your
 `PATH`. On a personal workstation, install Apptainer once from your OS package manager.
 
-### 0.5 Get the GDC reference files (one-time, ~59 GB)
+### 0.5 Install the GDC reference files (one-time, ~59 GB)
 
-The official production template uses `reference.mode: gdc` and `reference.dir: resources/gdc`.
-Two equivalent approaches land the exact files there:
+Production GDC references are a **site installation prerequisite**, not a Snakemake download target.
+The maintained installation metadata — pinned GDC URLs, archive names and official MD5s — lives in
+`resources/gdc_resources.tsv`. Install the exact bundle once, for example:
 
 ```bash
-# (a) pre-download + MD5-verify the complete bundle (recommended before a production campaign):
 bash resources/get_gdc_references.sh resources/gdc
-
-# (b) or let the GDC-mode Snakemake reference rules retrieve any missing targets when the run starts.
 ```
 
-This retrieves the **exact GDC files** (MD5-checked by the helper script): `GRCh38.d1.vd1.fa`,
-`gencode.v36.annotation.gtf`, and the GDC-built `star-2.7.5c_GRCh38.d1.vd1_gencode.v36` index.
-For harmonized production runs the human index is **downloaded, not rebuilt**, so it matches the
-GDC / TCGA reference bundle.
+The installer keeps the existing direct `wget` transfer approach, verifies each downloaded archive
+against the official GDC MD5 before extraction, and reuses already valid archives/installed targets.
+It installs `GRCh38.d1.vd1.fa`, `gencode.v36.annotation.gtf`, and the GDC-built
+`star-2.7.5c_GRCh38.d1.vd1_gencode.v36` index. The human STAR index is **downloaded, not rebuilt**,
+so it matches the GDC / TCGA reference bundle.
+
+Normal pipeline runs do **not** access the network for GDC references. The installed GDC bundle can
+be treated as read-only; pipeline-derived gene-length metadata is written beneath the run's
+`intermediate/` tree. If a configured production reference is absent or structurally incomplete,
+workflow initialization fails early with the missing paths and points back to the installer.
+
+Quick structural verification can be run at any time:
+
+```bash
+bash resources/verify_gdc_references.sh resources/gdc
+```
+
+For installation/transfer audits, retained archives can be rechecked against the official MD5s:
+
+```bash
+bash resources/verify_gdc_references.sh --archives resources/gdc
+```
+
+A second, consortium-specific integrity layer will be frozen only after the realistic production
+qualification succeeds. Maintainers will then generate one canonical
+`resources/gdc_installed_reference.sha256` from that qualified extracted installation. Partners verify
+against that shared manifest rather than generating their own baseline. A full installed-file SHA256
+verification is a one-time site/copy qualification step, **not** a per-run operation.
+
+During the current development phase, do not generate/freeze that canonical SHA256 manifest yet. Once
+it exists, a site installation is qualified with:
+
+```bash
+bash resources/verify_gdc_references.sh --qualify resources/gdc
+```
+
+Normal consortium runs will then check the small qualification stamp plus fast reference structure,
+without re-reading the ~30 GB STAR installation on every run.
 
 ### 0.6 Pre-pull the container images (one-time, ~1.4 GB)
 
@@ -276,6 +308,7 @@ FASTQs. See [`templates/README.md`](templates/README.md) for the complete input 
 The production template exposes a small run-specific edit surface:
 
 ```yaml
+consortium_run: true
 samples: /path/to/run/samples.tsv
 output:  /path/to/run/output
 # tmpdir: /path/to/fast/scratch/run_name   # optional; otherwise <output>/intermediate/tmp
@@ -289,10 +322,17 @@ reference:
   sjdb_overhang: 100
 ```
 
-The template also contains the pinned GDC URLs and full STAR recipe. For harmonized production
-runs, users normally edit `samples`, `output`, optionally `tmpdir`, the reference directory if
-resources live elsewhere, and execution-only settings such as `star.threads`; the GDC resource
-identifiers and `star.gdc_params` should remain unchanged.
+The run template intentionally does **not** contain GDC download URLs or archive checksums; those
+belong to the site-installation metadata under `resources/`. `consortium_run: true` is the standard
+pRCC-TREAT setting: it requires `reference.mode: gdc`, the maintained GDC FASTA/GTF/STAR-index names
+and `sjdb_overhang: 100`; once the canonical installed-reference SHA256 manifest has been frozen, it
+also requires a matching site qualification stamp. Set `consortium_run: false` only for deliberate
+non-consortium/custom-reference analyses. Basic structural checks still apply whenever
+`reference.mode: gdc` is selected.
+
+For harmonized production runs, users normally edit `samples`, `output`, optionally `tmpdir`, the
+reference directory if resources live elsewhere, and execution-only settings such as `star.threads`;
+the GDC filenames and `star.gdc_params` should remain unchanged.
 
 The run output root has a fixed three-part contract:
 

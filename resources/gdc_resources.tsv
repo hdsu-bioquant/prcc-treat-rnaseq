@@ -1,0 +1,4 @@
+resource_id	role	url	archive	official_md5	installed_path
+GRCh38.d1.vd1	genome_fasta	https://api.gdc.cancer.gov/data/254f697d-310d-4d7d-a27b-27fbf767a834	GRCh38.d1.vd1.fa.tar.gz	3ffbcfe2d05d43206f57f81ebb251dc9	GRCh38.d1.vd1.fa
+GENCODE.v36	annotation_gtf	https://api.gdc.cancer.gov/data/be002a2c-3b27-43f3-9e0f-fd47db92a6b5	gencode.v36.annotation.gtf.gz	c03931958d4572148650d62eb6dec41a	gencode.v36.annotation.gtf
+STAR.2.7.5c.GRCh38.d1.vd1.GENCODE.v36	star_index	https://api.gdc.cancer.gov/data/c0008693-0583-4eac-bd5c-583070763893	star-2.7.5c_GRCh38.d1.vd1_gencode.v36.tgz	acafb76bba5e3e80eb028dc05f002ffc	star-2.7.5c_GRCh38.d1.vd1_gencode.v36

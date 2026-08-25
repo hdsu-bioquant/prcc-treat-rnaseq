@@ -11,6 +11,9 @@
 #       https://github.com/NCI-GDC/gdc-rnaseq-cwl
 #==============================================================================#
 
+# This qualification test exercises the consortium reference identity policy.
+consortium_run: true
+
 # ---- Sample sheet ----------------------------------------------------------#
 # One row = one sequencing library. Required technical columns:
 # library_id, sample_id, assay, layout, strandedness, fq1, fq2,
@@ -21,19 +24,16 @@ samples: tests/real/samples.tsv
 output: tests/real/output
 tmpdir:  tests/real/output/intermediate/tmp
 
-# ---- GDC reference resources (exact GDC files; see resources/get_gdc_references.sh)
+# ---- GDC reference resources (pre-installed site bundle) ------------------#
+# Install once with resources/get_gdc_references.sh, then point each run at that
+# verified installation. Normal Snakemake execution has no GDC download rules.
 reference:
-  # Set to a directory holding the GDC reference files. If download_references is
-  # true, the references.smk rules fetch them here from the GDC Data Portal.
+  mode: gdc
   dir: resources/gdc
-  download_references: false   # true = download GDC reference files (requires internet access)
-  genome_fasta_tar_url:  "https://api.gdc.cancer.gov/data/254f697d-310d-4d7d-a27b-27fbf767a834"   # GRCh38.d1.vd1.fa.tar.gz  md5 3ffbcfe2d05d43206f57f81ebb251dc9
-  star_index_tgz_url:    "https://api.gdc.cancer.gov/data/c0008693-0583-4eac-bd5c-583070763893"   # star-2.7.5c_GRCh38.d1.vd1_gencode.v36.tgz  md5 acafb76bba5e3e80eb028dc05f002ffc
-  gtf_gz_url:            "https://api.gdc.cancer.gov/data/be002a2c-3b27-43f3-9e0f-fd47db92a6b5"   # gencode.v36.annotation.gtf.gz  md5 c03931958d4572148650d62eb6dec41a
   genome_fasta: GRCh38.d1.vd1.fa
   gtf:          gencode.v36.annotation.gtf
   star_index:   star-2.7.5c_GRCh38.d1.vd1_gencode.v36
-  sjdb_overhang: 100        # GDC builds the shipped index with sjdbOverhang 100
+  sjdb_overhang: 100        # GDC shipped index uses sjdbOverhang 100
 
 # ---- STAR (GDC DR32+ parameter recipe; do not change for GDC adherence) ----#
 star:

@@ -103,9 +103,14 @@ rule run_metadata:
         with open(output.references, "w", newline="") as fh:
             writer = csv.writer(fh, delimiter="\t", lineterminator="\n")
             writer.writerow(["role", "file", "reference_mode", "source"])
-            genome_source = ref.get("genome_fasta_tar_url", "local") if mode == "gdc" else "local"
-            gtf_source = ref.get("gtf_gz_url", "local") if mode == "gdc" else "local"
-            index_source = ref.get("star_index_tgz_url", "local") if mode == "gdc" else "local_build"
+            if mode == "gdc":
+                genome_source = "NCI GDC GRCh38.d1.vd1"
+                gtf_source = "NCI GDC GENCODE v36"
+                index_source = "NCI GDC STAR 2.7.5c pre-built index"
+            else:
+                genome_source = "local"
+                gtf_source = "local"
+                index_source = "local_build"
             writer.writerow(["genome_fasta", os.path.basename(FASTA), mode, genome_source])
             writer.writerow(["annotation_gtf", os.path.basename(GTF), mode, gtf_source])
             writer.writerow(["star_index", os.path.basename(STAR_IDX), mode, index_source])

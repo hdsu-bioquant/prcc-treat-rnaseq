@@ -1,8 +1,8 @@
-# references.smk — GDC production references or a local test/reference bundle
-# Production default: exact GDC GRCh38.d1.vd1 + GENCODE v36 resources.
-# Local mode: use supplied FASTA/GTF and build a STAR index (used by synthetic tests).
-
-REFERENCE_MODE = config["reference"].get("mode", "gdc")
+# references.smk — local development index generation + derived gene metadata
+#
+# Production GDC references are installed before analysis and validated during
+# workflow initialization in common.smk. Normal Snakemake execution never
+# downloads the GDC FASTA/GTF/STAR index.
 
 if REFERENCE_MODE == "local":
     rule local_star_index:
@@ -32,52 +32,6 @@ if REFERENCE_MODE == "local":
             test -s {output.done}
             """
 
-elif REFERENCE_MODE == "gdc":
-    rule gdc_genome_fasta:
-        output:
-            fasta = FASTA
-        params:
-            url = config["reference"]["genome_fasta_tar_url"],
-            d   = REFDIR
-        shell:
-            r"""
-            mkdir -p {params.d}
-            wget -O {params.d}/GRCh38.d1.vd1.fa.tar.gz "{params.url}"
-            tar -xzf {params.d}/GRCh38.d1.vd1.fa.tar.gz -C {params.d}
-            test -s {output.fasta}
-            """
-
-    rule gdc_gtf:
-        output:
-            gtf = GTF
-        params:
-            url = config["reference"]["gtf_gz_url"],
-            d   = REFDIR
-        shell:
-            r"""
-            mkdir -p {params.d}
-            wget -O {params.d}/gencode.v36.annotation.gtf.gz "{params.url}"
-            gunzip -f {params.d}/gencode.v36.annotation.gtf.gz
-            test -s {output.gtf}
-            """
-
-    rule gdc_star_index:
-        # Use the GDC-distributed STAR 2.7.5c index (sjdbOverhang 100) for GDC adherence.
-        output:
-            done = STAR_IDX_DONE
-        params:
-            url = config["reference"]["star_index_tgz_url"],
-            idx = STAR_IDX,
-            d   = REFDIR
-        shell:
-            r"""
-            mkdir -p {params.idx}
-            wget -O {params.d}/star_index.tgz "{params.url}"
-            tar -xzf {params.d}/star_index.tgz -C {params.idx} --strip-components=1
-            test -s {output.done}
-            """
-else:
-    raise ValueError("Unsupported reference.mode: %s (expected 'gdc' or 'local')" % REFERENCE_MODE)
 
 rule gene_lengths:
     # Non-overlapping (union-exon) gene length per gene_id from the active GTF,

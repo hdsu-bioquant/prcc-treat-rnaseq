@@ -1,4 +1,6 @@
 # common.smk — config parsing, library model, path policy, containers, final outputs
+import csv
+import hashlib
 import os
 import re
 import sys
@@ -35,13 +37,233 @@ os.environ["APPTAINERENV_MPLCONFIGDIR"] = MPLCONFIGDIR
 os.environ["APPTAINERENV_XDG_CACHE_HOME"] = XDG_CACHE_HOME
 os.environ["APPTAINERENV_JAVA_TOOL_OPTIONS"] = f"-Duser.home={JAVA_USER_HOME}"
 
-# ---- references ------------------------------------------------------------#
-REFDIR    = config["reference"]["dir"]
-FASTA     = join(REFDIR, config["reference"]["genome_fasta"])
-GTF       = join(REFDIR, config["reference"]["gtf"])
-STAR_IDX  = join(REFDIR, config["reference"]["star_index"])
+# ---- consortium/reference policy -------------------------------------------#
+# ``consortium_run`` is deliberately explicit. Consortium runs enforce the
+# maintained GDC reference identity; non-consortium runs remain free to use the
+# pipeline's local-reference mode. Basic GDC structural checks stay enabled for
+# every run that selects reference.mode=gdc.
+CONSORTIUM_RUN = config.get("consortium_run")
+if not isinstance(CONSORTIUM_RUN, bool):
+    raise ValueError(
+        "Run config must define top-level 'consortium_run: true' or "
+        "'consortium_run: false' as a YAML boolean"
+    )
+
+REFERENCE_CONFIG = config.get("reference")
+if not isinstance(REFERENCE_CONFIG, dict):
+    raise ValueError("Run config must define a 'reference:' mapping")
+
+REFERENCE_MODE = REFERENCE_CONFIG.get("mode", "gdc")
+if REFERENCE_MODE not in {"gdc", "local"}:
+    raise ValueError(
+        f"Unsupported reference.mode: {REFERENCE_MODE!r} (expected 'gdc' or 'local')"
+    )
+
+for _key in ("dir", "genome_fasta", "gtf", "star_index"):
+    if not REFERENCE_CONFIG.get(_key):
+        raise ValueError(f"Run config reference.{_key} must be defined")
+
+REFDIR    = REFERENCE_CONFIG["dir"]
+FASTA     = join(REFDIR, REFERENCE_CONFIG["genome_fasta"])
+GTF       = join(REFDIR, REFERENCE_CONFIG["gtf"])
+STAR_IDX  = join(REFDIR, REFERENCE_CONFIG["star_index"])
 STAR_IDX_DONE = join(STAR_IDX, "SAindex")
-GENE_LENGTHS  = join(REFDIR, "gene_lengths.tsv")
+
+_RESOURCE_DIR = os.path.abspath(os.path.join(workflow.basedir, "..", "resources"))
+_GDC_RESOURCE_TABLE = os.path.join(_RESOURCE_DIR, "gdc_resources.tsv")
+_GDC_CANONICAL_MANIFEST = os.path.join(_RESOURCE_DIR, "gdc_installed_reference.sha256")
+_GDC_QUALIFICATION_STAMP = ".prcc_treat_reference_qualification.tsv"
+
+# Gene lengths are pipeline-derived metadata, not part of the official GDC
+# installation. Keep production reference bundles read-only by generating this
+# small helper under the run intermediate tree. Local/synthetic mode retains its
+# established reference-local path and behavior.
+GENE_LENGTHS = (
+    join(INTERMEDIATE, "reference/gene_lengths.tsv")
+    if REFERENCE_MODE == "gdc"
+    else join(REFDIR, "gene_lengths.tsv")
+)
+
+
+def _missing_or_empty_file(path):
+    return not os.path.isfile(path) or os.path.getsize(path) == 0
+
+
+def _validate_preinstalled_gdc_references():
+    """Fast structural validation for every pre-installed GDC-mode run."""
+    missing = []
+    for _label, _path in (("genome FASTA", FASTA), ("annotation GTF", GTF)):
+        if _missing_or_empty_file(_path):
+            missing.append(f"{_label}: {_path}")
+
+    _star_required = (
+        "Genome",
+        "SA",
+        "SAindex",
+        "chrLength.txt",
+        "chrName.txt",
+        "chrNameLength.txt",
+        "chrStart.txt",
+        "genomeParameters.txt",
+    )
+    if not os.path.isdir(STAR_IDX):
+        missing.append(f"STAR index directory: {STAR_IDX}")
+    else:
+        for _name in _star_required:
+            _path = join(STAR_IDX, _name)
+            if _missing_or_empty_file(_path):
+                missing.append(f"STAR index file: {_path}")
+
+    if missing:
+        details = "\n".join(f"  - {item}" for item in missing)
+        raise ValueError(
+            "GDC reference installation is missing or incomplete.\n"
+            f"Configured reference.dir: {REFDIR}\n"
+            f"Missing required path(s):\n{details}\n\n"
+            "Install/repair the reference bundle before analysis. For the maintained "
+            "GDC bundle, for example:\n"
+            f"  bash resources/get_gdc_references.sh {REFDIR}\n"
+            "Normal workflow execution does not download GDC references."
+        )
+
+
+def _expected_consortium_gdc_paths():
+    if not os.path.isfile(_GDC_RESOURCE_TABLE):
+        raise ValueError(f"Maintained GDC resource table is missing: {_GDC_RESOURCE_TABLE}")
+
+    expected = {}
+    with open(_GDC_RESOURCE_TABLE, newline="") as fh:
+        for row in csv.DictReader(fh, delimiter="\t"):
+            role = row.get("role", "")
+            installed = row.get("installed_path", "")
+            if role and installed:
+                expected[role] = installed
+
+    required = {"genome_fasta", "annotation_gtf", "star_index"}
+    missing = required - set(expected)
+    if missing:
+        raise ValueError(
+            f"Maintained GDC resource table lacks role(s): {', '.join(sorted(missing))}"
+        )
+    return expected
+
+
+def _sha256_file(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _read_qualification_stamp(path):
+    values = {}
+    with open(path) as fh:
+        for lineno, line in enumerate(fh, 1):
+            line = line.rstrip("\n")
+            if not line:
+                continue
+            parts = line.split("\t", 1)
+            if len(parts) != 2:
+                raise ValueError(
+                    f"Malformed consortium reference qualification stamp {path!r} "
+                    f"at line {lineno}"
+                )
+            values[parts[0]] = parts[1]
+    return values
+
+
+def _validate_consortium_reference_identity():
+    """Enforce consortium-specific reference identity without rehashing the bundle.
+
+    Before the maintainer-owned canonical installed-reference manifest is frozen,
+    development consortium runs enforce the exact maintained GDC filenames and
+    structural completeness and emit a warning. Once that manifest exists in the
+    repository, ``consortium_run: true`` additionally requires a site qualification
+    stamp whose manifest identity matches the shipped canonical manifest.
+    """
+    if not CONSORTIUM_RUN:
+        return
+
+    if REFERENCE_MODE != "gdc":
+        raise ValueError(
+            "consortium_run: true requires reference.mode: gdc. "
+            "Use consortium_run: false for local/custom reference analyses."
+        )
+
+    expected = _expected_consortium_gdc_paths()
+    configured = {
+        "genome_fasta": REFERENCE_CONFIG["genome_fasta"],
+        "annotation_gtf": REFERENCE_CONFIG["gtf"],
+        "star_index": REFERENCE_CONFIG["star_index"],
+    }
+    mismatches = [
+        f"reference.{('gtf' if role == 'annotation_gtf' else role)}: "
+        f"configured {configured[role]!r}, expected {expected[role]!r}"
+        for role in ("genome_fasta", "annotation_gtf", "star_index")
+        if configured[role] != expected[role]
+    ]
+
+    try:
+        sjdb_overhang = int(REFERENCE_CONFIG.get("sjdb_overhang", 100))
+    except (TypeError, ValueError):
+        sjdb_overhang = None
+    if sjdb_overhang != 100:
+        mismatches.append(
+            f"reference.sjdb_overhang: configured {REFERENCE_CONFIG.get('sjdb_overhang')!r}, "
+            "expected 100"
+        )
+
+    if mismatches:
+        details = "\n".join(f"  - {item}" for item in mismatches)
+        raise ValueError(
+            "consortium_run: true requires the maintained pRCC-TREAT GDC reference identity.\n"
+            f"Mismatch(es):\n{details}\n"
+            "Set consortium_run: false for a deliberately non-consortium/custom-reference run."
+        )
+
+    if not os.path.isfile(_GDC_CANONICAL_MANIFEST):
+        print(
+            "WARNING: consortium_run=true, but the maintainer-owned canonical installed-reference "
+            "SHA256 manifest has not yet been frozen. This is expected during development; "
+            "exact GDC filenames and fast structural checks are enforced, but byte-level site "
+            "qualification is not yet required.",
+            file=sys.stderr,
+        )
+        return
+
+    if _missing_or_empty_file(_GDC_CANONICAL_MANIFEST):
+        raise ValueError(
+            f"Canonical consortium reference manifest is empty: {_GDC_CANONICAL_MANIFEST}"
+        )
+
+    canonical_sha256 = _sha256_file(_GDC_CANONICAL_MANIFEST)
+    stamp_path = join(REFDIR, _GDC_QUALIFICATION_STAMP)
+    if _missing_or_empty_file(stamp_path):
+        raise ValueError(
+            "consortium_run: true requires this installed reference bundle to be qualified "
+            "against the maintainer-frozen SHA256 manifest.\n"
+            f"Missing qualification stamp: {stamp_path}\n"
+            "Run once after installation/copying:\n"
+            f"  bash resources/verify_gdc_references.sh --qualify {REFDIR}"
+        )
+
+    stamp = _read_qualification_stamp(stamp_path)
+    observed = stamp.get("canonical_manifest_sha256")
+    if observed != canonical_sha256:
+        raise ValueError(
+            "The installed GDC reference qualification stamp does not match the canonical "
+            "manifest shipped with this pipeline checkout.\n"
+            f"Installed stamp manifest SHA256: {observed or '<missing>'}\n"
+            f"Pipeline canonical manifest SHA256: {canonical_sha256}\n"
+            "Re-qualify the installed bundle with:\n"
+            f"  bash resources/verify_gdc_references.sh --qualify {REFDIR}"
+        )
+
+
+if REFERENCE_MODE == "gdc":
+    _validate_preinstalled_gdc_references()
+_validate_consortium_reference_identity()
 
 # ---- sequencing-library sample sheet --------------------------------------#
 # One row = one sequencing library. library_id drives processing/output naming;

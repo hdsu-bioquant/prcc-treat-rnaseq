@@ -154,8 +154,16 @@ branch and should be replaced by the tagged release identifier when maintainers 
 
 ### Fields users normally edit
 
+`consortium_run` must be an explicit YAML boolean. Keep `consortium_run: true` for pRCC-TREAT
+consortium runs. Set it to `false` only for deliberate non-consortium/custom-reference use. In
+consortium mode the workflow enforces the maintained GDC reference filenames and
+`reference.sjdb_overhang: 100`; after the canonical installed-reference SHA256 manifest is frozen,
+it also requires a matching site qualification stamp. No ~30 GB reference hash is recomputed at
+normal run startup.
+
 | Field | Required? | Guidance |
 |---|---|---|
+| `consortium_run` | yes | `true` for pRCC-TREAT consortium runs; `false` for deliberate non-consortium/custom-reference analyses. |
 | `samples` | yes | Absolute path to the copied run `samples.tsv` is recommended. |
 | `output` | yes | Run-wise output root. Must be different for independent runs. |
 | `tmpdir` | no | Optional STAR scratch location. If omitted: `<output>/intermediate/tmp`. |
@@ -167,7 +175,6 @@ branch and should be replaced by the tagged release identifier when maintainers 
 For consortium-harmonized production runs, retain the template values for:
 
 - `reference.mode: gdc`;
-- the three pinned GDC download URLs;
 - GDC filenames / STAR-index directory name;
 - `reference.sjdb_overhang: 100`;
 - `star.gdc_params`;
@@ -185,16 +192,32 @@ The standard production reference is:
 - annotation: `gencode.v36.annotation.gtf`;
 - STAR index: `star-2.7.5c_GRCh38.d1.vd1_gencode.v36`.
 
-If those files already exist under `reference.dir`, Snakemake uses them. In GDC mode, if a
-required reference target is missing, the workflow has rules to retrieve the pinned resource
-from the GDC Data Portal. Partners can also pre-fetch and verify the complete bundle with:
+These files must already exist under `reference.dir` before a production run starts. Snakemake
+never downloads the GDC production bundle. Install and MD5-verify the maintained bundle once at
+each site with:
 
 ```bash
 bash resources/get_gdc_references.sh resources/gdc
 ```
 
-For multi-site harmonization, use the fixed resources rather than rebuilding the human STAR
-index locally.
+During development, the official archive MD5s plus structural checks are sufficient. After the
+realistic qualification succeeds, maintainers will freeze one canonical
+`resources/gdc_installed_reference.sha256`. From then on, consortium sites qualify an installed or
+copied bundle once with `bash resources/verify_gdc_references.sh --qualify /path/to/gdc`; normal runs
+check the resulting small stamp rather than hashing the full reference installation repeatedly.
+
+Pinned URLs and official GDC archive MD5s are installation metadata in
+`resources/gdc_resources.tsv`; they are intentionally absent from copied run configs. A quick
+site check is available with:
+
+```bash
+bash resources/verify_gdc_references.sh resources/gdc
+```
+
+For multi-site harmonization, use the fixed pre-built resources rather than rebuilding the human
+STAR index locally. If references live on a site-specific filesystem root, keep the scientific
+reference identity in the run config and put any required Apptainer bind root in the copied
+execution profile.
 
 ## 5. Assay and UMI behavior
 

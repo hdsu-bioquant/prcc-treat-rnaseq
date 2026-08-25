@@ -22,6 +22,10 @@ pipeline_release: "development"
 # USER EDITS — required for each run
 #------------------------------------------------------------------------------#
 
+# Consortium identity enforcement. Keep true for pRCC-TREAT consortium runs.
+# Set false for deliberate non-consortium/custom-reference use of the pipeline.
+consortium_run: true
+
 # One row = one sequencing library. Start from templates/samples.tsv.
 samples: /path/to/run/samples.tsv
 
@@ -31,17 +35,13 @@ output: /path/to/run/output
 # Optional STAR scratch override. If omitted, defaults to <output>/intermediate/tmp.
 # tmpdir: /path/to/fast/scratch/pRCC-RNA-Seq/run_name
 
-# Exact GDC reference bundle location. If the files are already present here,
-# Snakemake uses them. In GDC mode, missing resources can be fetched by the
-# reference rules from the pinned GDC URLs below.
+# Exact GDC reference bundle location. The production bundle must be installed
+# at the site before analysis; normal Snakemake execution never downloads it.
+# Installation metadata (pinned GDC URLs + official MD5s) is maintained under
+# resources/, not copied into each run configuration.
 reference:
   mode: gdc
   dir: resources/gdc
-
-  # Pinned GDC resources — do not change for harmonized production runs.
-  genome_fasta_tar_url: "https://api.gdc.cancer.gov/data/254f697d-310d-4d7d-a27b-27fbf767a834"
-  star_index_tgz_url:   "https://api.gdc.cancer.gov/data/c0008693-0583-4eac-bd5c-583070763893"
-  gtf_gz_url:           "https://api.gdc.cancer.gov/data/be002a2c-3b27-43f3-9e0f-fd47db92a6b5"
   genome_fasta: GRCh38.d1.vd1.fa
   gtf: gencode.v36.annotation.gtf
   star_index: star-2.7.5c_GRCh38.d1.vd1_gencode.v36

@@ -282,6 +282,7 @@ with open(TEST/'samples.tsv','w') as fh:
 # a local miniature reference rather than GDC downloads.
 config = '''\
 # pRCC-TREAT synthetic smoke test (target configuration)
+consortium_run: false
 samples: tests/synthetic/samples.tsv
 output: tests/synthetic/output
 tmpdir: tests/synthetic/output/intermediate/tmp

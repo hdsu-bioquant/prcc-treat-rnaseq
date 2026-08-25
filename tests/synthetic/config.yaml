@@ -1,4 +1,5 @@
 # pRCC-TREAT synthetic smoke test (target configuration)
+consortium_run: false
 samples: tests/synthetic/samples.tsv
 output: tests/synthetic/output
 tmpdir: tests/synthetic/output/intermediate/tmp

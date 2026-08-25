@@ -3,7 +3,7 @@
 # Everything below is large and/or regenerable; never commit it.
 #=============================================================================#
 
-# GDC reference bundle (~59 GB) — rebuild with: bash resources/get_gdc_references.sh resources/gdc
+# GDC reference bundle (~59 GB) — install with: bash resources/get_gdc_references.sh resources/gdc
 resources/gdc/
 
 # Apptainer/Singularity images (~1.4 GB) — rebuild with: bash containers/pull_images.sh

@@ -1,0 +1,4 @@
+run_accession	library_id	read_role	filename	url	bytes	md5
+SRR493372	REAL_FL	R1	SRR493372_1.fastq.gz	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR493/SRR493372/SRR493372_1.fastq.gz	76245678	36c8d43c71fc4c2663b74e0410234249
+SRR493372	REAL_FL	R2	SRR493372_2.fastq.gz	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR493/SRR493372/SRR493372_2.fastq.gz	81014267	cd07afd9336f3f90d843b96f7a698cec
+SRR16932032	REAL_QS_UMI	R1	SRR16932032.fastq.gz	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR169/032/SRR16932032/SRR16932032.fastq.gz	80605253	28cacfc5d77690280ca783944fe31cf0

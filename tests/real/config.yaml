@@ -1,44 +1,40 @@
 #==============================================================================#
-# RNA-Seq-pRCC — unified, GDC-aligned RNA-seq pipeline (multi-site pRCC)
+# pRCC-RNA-Seq — realistic public-data qualification run configuration
 #==============================================================================#
-# Standardized to the NCI GDC mRNA Analysis pipeline (Data Release 32+):
-#   - Reference  : GRCh38.d1.vd1
-#   - Annotation : GENCODE v36
-#   - Aligner    : STAR 2.7.5c, two-pass (--twopassMode Basic)
-#   - Counts     : STAR --quantMode GeneCounts (unstranded column = GDC headline)
-#   - FL Norm    : FPKM, FPKM-UQ, TPM columns in canonical per-library output
-# Refs: https://docs.gdc.cancer.gov/Data/Bioinformatics_Pipelines/Expression_mRNA_Pipeline/
-#       https://github.com/NCI-GDC/gdc-rnaseq-cwl
+# Maintainer-owned qualification definition.
+#
+# For the qualification exercise, COPY this file to a fresh run directory and
+# edit ONLY the fields explicitly marked "SITE/RUN EDIT" below. Do not run the
+# maintained file in tests/real/ directly and do not change harmonization values.
 #==============================================================================#
 
-# This qualification test exercises the consortium reference identity policy.
+pipeline_release: "development"
+
+# This test deliberately exercises consortium-specific reference enforcement.
 consortium_run: true
 
-# ---- Sample sheet ----------------------------------------------------------#
-# One row = one sequencing library. Required technical columns:
-# library_id, sample_id, assay, layout, strandedness, fq1, fq2,
-# has_umi; UMI-detail columns (when present): umi_pattern, umi_location, umi_discard_bases. Extra metadata columns are allowed.
-samples: tests/real/samples.tsv
+# SITE/RUN EDIT: absolute path to the COPIED samples.tsv in the qualification run.
+samples: /EDIT/ABSOLUTE/PATH/TO/qualification-run/samples.tsv
 
-# ---- Output / scratch ------------------------------------------------------#
-output: tests/real/output
-tmpdir:  tests/real/output/intermediate/tmp
+# SITE/RUN EDIT: output owned by this qualification run.
+output: /EDIT/ABSOLUTE/PATH/TO/qualification-run/output
 
-# ---- GDC reference resources (pre-installed site bundle) ------------------#
-# Install once with resources/get_gdc_references.sh, then point each run at that
-# verified installation. Normal Snakemake execution has no GDC download rules.
+# Optional site-specific scratch can be added after copying, if needed:
+# tmpdir: /path/to/fast/scratch/pRCC-RNA-Seq-real-qualification
+
 reference:
   mode: gdc
-  dir: resources/gdc
+  # SITE/RUN EDIT: absolute path to the site's pre-installed GDC bundle.
+  dir: /EDIT/ABSOLUTE/PATH/TO/gdc
   genome_fasta: GRCh38.d1.vd1.fa
-  gtf:          gencode.v36.annotation.gtf
-  star_index:   star-2.7.5c_GRCh38.d1.vd1_gencode.v36
-  sjdb_overhang: 100        # GDC shipped index uses sjdbOverhang 100
+  gtf: gencode.v36.annotation.gtf
+  star_index: star-2.7.5c_GRCh38.d1.vd1_gencode.v36
+  sjdb_overhang: 100
 
-# ---- STAR (GDC DR32+ parameter recipe; do not change for GDC adherence) ----#
 star:
+  # Execution/resource setting. For qualification, keep 8 unless the site profile
+  # or scheduler requires a documented alternative; scientific STAR flags stay fixed.
   threads: 8
-  # Verbatim GDC mRNA STAR flags (paired-end). SE branch drops PE-only behavior.
   gdc_params: >-
     --alignIntronMax 1000000 --alignIntronMin 20 --alignMatesGapMax 1000000
     --alignSJDBoverhangMin 1 --alignSJoverhangMin 8 --alignSoftClipAtReferenceEnds Yes
@@ -52,30 +48,18 @@ star:
     --outSAMstrandField intronMotif --outSAMtype BAM Unsorted --outSAMunmapped Within
     --quantMode TranscriptomeSAM GeneCounts --twopassMode Basic
 
-# ---- Full-length poly-A branch -----------------------#
 full_length:
-  # GDC does NOT trim adapters (relies on STAR soft-clipping). Default off for
-  # GDC adherence; set true to enable fastp.
   trim_adapters: false
 
-# ---- QuantSeq branch -------------------------------------------------------#
-# UMI presence/pattern/location and strandedness are library-level properties in
-# samples.tsv, not global QuantSeq settings.
 quantseq:
-  bbduk_polyA: true            # poly(A) + adapter right-trim (BBDuk)
+  bbduk_polyA: true
 
-# ---- Optional modules (full-length branch only; off by default) ------------#
 modules:
-  fusion:  false   # Arriba v1.1.0 + STAR-Fusion (GDC fusion tools)
-  te:      false   # TEcount (TEtranscripts)
-  ase:     false   # GATK ASEReadCounter (requires externally supplied germline VCF)
-  rseqc:   false   # RSeQC QC (PE full-length only; needs the GENCODE BED12)
+  fusion: false
+  te: false
+  ase: false
+  rseqc: false
 
-# Optional CTAT lib dir for STAR-Fusion (set when modules.fusion: true)
 ctat_genome_lib: ""
-
-# Optional TE annotation GTF for TEcount (set when modules.te: true)
 te_gtf: ""
-
-# Optional germline VCF (per sample) for ASE (set when modules.ase: true)
 ase_germline_vcf: ""

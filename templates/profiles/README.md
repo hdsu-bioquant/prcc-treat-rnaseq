@@ -165,7 +165,8 @@ Before analyzing consortium data on a new installation, run the frozen synthetic
 test described in `tests/synthetic/README.md`. That test is intentionally independent of these
 production profiles: every partner runs the same fixed two-core synthetic workflow. The site's
 actual copied local/SLURM profile is exercised later by the realistic `tests/real/`
-production-style qualification.
+production-style qualification. Creating/editing that profile manually is intentionally part of
+the qualification exercise; there is no helper script that silently chooses site settings.
 
 ## 6. Resource expectations
 

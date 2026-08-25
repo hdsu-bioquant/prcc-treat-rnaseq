@@ -328,6 +328,8 @@ Before production use at a new site, first run:
 bash tests/synthetic/run_test.sh
 ```
 
-and confirm that the frozen synthetic validation baseline passes. The separate realistic
-public-data/GDC-resource qualification test under `tests/real/` is finalized independently of
-these production templates.
+and confirm that the frozen synthetic validation baseline passes. Then follow the realistic
+public-data/GDC-resource qualification under `tests/real/`. That exercise deliberately uses the
+same operational model described here: configure a site execution profile once, create a fresh
+run directory, copy maintained run files into it, edit only run/site paths, and invoke Snakemake
+directly with the persistent profile.

@@ -1,3 +1,3 @@
-library_id	sample_id	assay	layout	strandedness	fq1	fq2	has_umi	umi_pattern	umi_location	umi_discard_bases	source_dataset
-FL_S1	S1	full_length	paired	reverse	tests/real/data/FL_S1_R1.fastq.gz	tests/real/data/FL_S1_R2.fastq.gz	false	-	-	-	corley
-QS_S1	S1	quantseq	single	forward	tests/real/data/QS_S1_R1.fastq.gz	-	false	-	-	-	corley
+library_id	sample_id	assay	layout	strandedness	fq1	fq2	has_umi	umi_pattern	umi_location	umi_discard_bases	run_accession
+REAL_FL	REAL_FL	full_length	paired	unstranded	/EDIT/ABSOLUTE/PATH/TO/repository/tests/real/data/SRR493372_1.fastq.gz	/EDIT/ABSOLUTE/PATH/TO/repository/tests/real/data/SRR493372_2.fastq.gz	false	-	-	-	SRR493372
+REAL_QS_UMI	REAL_QS_UMI	quantseq	single	forward	/EDIT/ABSOLUTE/PATH/TO/repository/tests/real/data/SRR16932032.fastq.gz	-	true	NNNNNN	read1_start	4	SRR16932032

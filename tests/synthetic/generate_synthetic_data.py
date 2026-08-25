@@ -99,22 +99,26 @@ def pe_fragment(gid, start, frag_len=220, r1_len=100, r2_len=100):
     assert len(frag) == frag_len
     return frag[:r1_len], rc(frag[-r2_len:])
 
-def pe_fragment_umi(gid, start, umi, frag_len=180):
+def pe_fragment_umi_r2(gid, start, umi, frag_len=180):
     tx = TX[gid]
     frag = tx[start:start+frag_len]
     assert len(frag) == frag_len
-    # Raw R1 is 100 nt: 6-nt UMI followed by 94 biological bases.
-    return umi + frag[:94], rc(frag[-100:])
+    # FL_UMI exercises a non-Lexogen UMI design: an 8-nt UMI at the start of R2
+    # with no additional discard bases. After extraction the biological pair is
+    # 94 nt on R1 and 100 nt on R2, matching the previous post-extraction fixture.
+    return frag[:94], umi + rc(frag[-100:])
 
 def qs_read(gid, start, bio_len=60, polya=15):
     seq = TX[gid][start:start+bio_len]
     assert len(seq) == bio_len
     return seq + 'A'*polya
 
-def qs_read_umi(gid, start, umi, bio_len=60, polya=9):
+def qs_read_umi(gid, start, umi, bio_len=60, polya=9, spacer='TATA'):
     seq = TX[gid][start:start+bio_len]
     assert len(seq) == bio_len
-    return umi + seq + 'A'*polya
+    # Lexogen-like structure: fixed-length UMI, then a non-UMI spacer that must
+    # also be discarded, followed by the biological sequence and terminal poly(A).
+    return umi + spacer + seq + 'A'*polya
 
 read_manifest = []
 def add_manifest(library_id, rid, gid, umi, group, exp_aligned=True, exp_trimmed=True):
@@ -143,26 +147,28 @@ write_fastq(DATA/'FL_noUMI_R1.fastq.gz', fl_r1)
 write_fastq(DATA/'FL_noUMI_R2.fastq.gz', fl_r2)
 
 # ---------------------------------------------------------------------------
-# 2) Full-length paired-end with 6-nt UMI at R1 start. Deliberate PCR duplicate
-# groups test that UMI handling is assay-independent after the refactor.
+# 2) Full-length paired-end with an 8-nt UMI at R2 start and discard=0. This is
+# intentionally different from the QuantSeq UMI structure, proving that UMI
+# handling is not hard-coded to one assay/partner design. Deliberate PCR duplicate
+# groups preserve the existing raw and molecule-count expectations.
 # Raw gene counts: A/B/C = 6/5/4; UMI molecules = 4/4/3.
 # ---------------------------------------------------------------------------
 fl_u_r1, fl_u_r2 = [], []
 fl_umi_blueprint = {
- 'SYN_GENE_A': [(100,'ACGTAC',3),(100,'TGCATG',1),(200,'ACGTAC',1),(300,'GATCGA',1)],
- 'SYN_GENE_B': [(80,'CCGGTT',2),(80,'TTAACT',1),(180,'CCGGTT',1),(280,'AGCTGA',1)],
- 'SYN_GENE_C': [(40,'CACGTC',2),(140,'CACGTC',1),(140,'GATCGA',1)],
+ 'SYN_GENE_A': [(100,'ACGTACGT',3),(100,'TGCATGCA',1),(200,'ACGTACGT',1),(300,'GATCGATC',1)],
+ 'SYN_GENE_B': [(80,'CCGGTTAA',2),(80,'TTAACTGG',1),(180,'CCGGTTAA',1),(280,'AGCTGACT',1)],
+ 'SYN_GENE_C': [(40,'CACGTCAG',2),(140,'CACGTCAG',1),(140,'GATCGATC',1)],
 }
 for gid, groups in fl_umi_blueprint.items():
-    for st, umi, copies in groups:
+    for molecule_no, (st, umi, copies) in enumerate(groups, 1):
         for c in range(1,copies+1):
-            rid=f'FL_UMI|{gid}|start{st}|umi{umi}|copy{c}'
-            r1,r2=pe_fragment_umi(gid, st, umi)
+            rid=f'FL_UMI|{gid}|start{st}|molecule{molecule_no}|copy{c}'
+            r1,r2=pe_fragment_umi_r2(gid, st, umi)
             fl_u_r1.append((rid+'/1',r1)); fl_u_r2.append((rid+'/2',r2))
             add_manifest('FL_UMI',rid,gid,umi,f'{gid}:start{st}:umi{umi}')
-rid='FL_UMI|UNMAPPED|umiTGCATG|copy1'
-fl_u_r1.append((rid+'/1','TGCATG'+'N'*94)); fl_u_r2.append((rid+'/2','N'*100))
-add_manifest('FL_UMI',rid,'UNMAPPED','TGCATG','unmapped',False,True)
+rid='FL_UMI|UNMAPPED|molecule1|copy1'
+fl_u_r1.append((rid+'/1','N'*94)); fl_u_r2.append((rid+'/2','TGCATGCA'+'N'*100))
+add_manifest('FL_UMI',rid,'UNMAPPED','TGCATGCA','unmapped',False,True)
 write_fastq(DATA/'FL_UMI_R1.fastq.gz', fl_u_r1)
 write_fastq(DATA/'FL_UMI_R2.fastq.gz', fl_u_r2)
 
@@ -186,8 +192,10 @@ qs.append((rid,TX['SYN_GENE_A'][450:460]+'A'*65)); add_manifest('QS_noUMI',rid,'
 write_fastq(DATA/'QS_noUMI_R1.fastq.gz',qs)
 
 # ---------------------------------------------------------------------------
-# 4) QuantSeq SE + Lexogen-like 6-nt UMI at R1 start. Normal reads are 75 nt:
-# 6 UMI + 60 biological + 9 poly(A). Same-coordinate/same-UMI PCR duplicates,
+# 4) QuantSeq SE + Lexogen-like 6-nt UMI followed by a 4-nt TATA spacer at
+# R1 start. Normal reads are 79 nt: 6 UMI + 4 spacer + 60 biological + 9 poly(A).
+# Correct extraction must remove both the UMI and spacer before BBDuk.
+# Same-coordinate/same-UMI PCR duplicates,
 # same-coordinate/different-UMI molecules, and same-UMI/different-coordinate
 # molecules are all represented.
 # Expected raw A/B/C = 6/5/4; dedup molecules = 4/4/3.
@@ -199,15 +207,15 @@ qs_umi_blueprint = {
  'SYN_GENE_C': [(400,'CACGTC',2),(410,'CACGTC',1),(410,'GATCGA',1)],
 }
 for gid, groups in qs_umi_blueprint.items():
-    for st,umi,copies in groups:
+    for molecule_no, (st,umi,copies) in enumerate(groups, 1):
         for c in range(1,copies+1):
-            rid=f'QS_UMI|{gid}|start{st}|umi{umi}|copy{c}'
+            rid=f'QS_UMI|{gid}|start{st}|molecule{molecule_no}|copy{c}'
             qsu.append((rid,qs_read_umi(gid,st,umi)))
             add_manifest('QS_UMI',rid,gid,umi,f'{gid}:start{st}:umi{umi}')
-rid='QS_UMI|UNMAPPED|umiTGCATG|copy1'
-qsu.append((rid,'TGCATG'+'C'*60+'A'*9)); add_manifest('QS_UMI',rid,'UNMAPPED','TGCATG','unmapped',False,True)
-rid='QS_UMI|TRIM_DROP|umiACGTAC|copy1'
-qsu.append((rid,'ACGTAC'+TX['SYN_GENE_A'][450:460]+'A'*59)); add_manifest('QS_UMI',rid,'TRIM_DROP','ACGTAC','trim_drop',False,False)
+rid='QS_UMI|UNMAPPED|molecule1|copy1'
+qsu.append((rid,'TGCATG'+'TATA'+'C'*60+'A'*9)); add_manifest('QS_UMI',rid,'UNMAPPED','TGCATG','unmapped',False,True)
+rid='QS_UMI|TRIM_DROP|molecule1|copy1'
+qsu.append((rid,'ACGTAC'+'TATA'+TX['SYN_GENE_A'][450:460]+'A'*59)); add_manifest('QS_UMI',rid,'TRIM_DROP','ACGTAC','trim_drop',False,False)
 write_fastq(DATA/'QS_UMI_R1.fastq.gz',qsu)
 
 # Expected gene lengths from union-of-exons.
@@ -261,12 +269,12 @@ with open(EXPECTED/'expected_summary.tsv','w') as fh:
 # Library-centric sample sheet. ``batch`` is an intentionally unused extra metadata
 # column, demonstrating that user metadata beyond the required technical schema is allowed.
 with open(TEST/'samples.tsv','w') as fh:
-    fh.write('library_id\tsample_id\tassay\tlayout\tstrandedness\tfq1\tfq2\thas_umi\tumi_pattern\tumi_location\tbatch\n')
+    fh.write('library_id\tsample_id\tassay\tlayout\tstrandedness\tfq1\tfq2\thas_umi\tumi_pattern\tumi_location\tumi_discard_bases\tbatch\n')
     rows=[
-      ('FL_noUMI','SYN_SAMPLE_1','full_length','paired','forward','tests/synthetic/data/FL_noUMI_R1.fastq.gz','tests/synthetic/data/FL_noUMI_R2.fastq.gz','false','-','-','synthetic'),
-      ('FL_UMI','SYN_SAMPLE_2','full_length','paired','forward','tests/synthetic/data/FL_UMI_R1.fastq.gz','tests/synthetic/data/FL_UMI_R2.fastq.gz','true','NNNNNN','read1_start','synthetic'),
-      ('QS_noUMI','SYN_SAMPLE_1','quantseq','single','forward','tests/synthetic/data/QS_noUMI_R1.fastq.gz','-','false','-','-','synthetic'),
-      ('QS_UMI','SYN_SAMPLE_2','quantseq','single','forward','tests/synthetic/data/QS_UMI_R1.fastq.gz','-','true','NNNNNN','read1_start','synthetic'),
+      ('FL_noUMI','SYN_SAMPLE_1','full_length','paired','forward','tests/synthetic/data/FL_noUMI_R1.fastq.gz','tests/synthetic/data/FL_noUMI_R2.fastq.gz','false','-','-','-','synthetic'),
+      ('FL_UMI','SYN_SAMPLE_2','full_length','paired','forward','tests/synthetic/data/FL_UMI_R1.fastq.gz','tests/synthetic/data/FL_UMI_R2.fastq.gz','true','NNNNNNNN','read2_start','0','synthetic'),
+      ('QS_noUMI','SYN_SAMPLE_1','quantseq','single','forward','tests/synthetic/data/QS_noUMI_R1.fastq.gz','-','false','-','-','-','synthetic'),
+      ('QS_UMI','SYN_SAMPLE_2','quantseq','single','forward','tests/synthetic/data/QS_UMI_R1.fastq.gz','-','true','NNNNNN','read1_start','4','synthetic'),
     ]
     for row in rows: fh.write('\t'.join(row)+'\n')
 
@@ -376,11 +384,15 @@ assert len(read_fastq(DATA/'FL_UMI_R1.fastq.gz')) == 16
 assert len(read_fastq(DATA/'FL_UMI_R2.fastq.gz')) == 16
 assert len(read_fastq(DATA/'QS_noUMI_R1.fastq.gz')) == 14
 assert len(read_fastq(DATA/'QS_UMI_R1.fastq.gz')) == 17
-# All QS raw reads are exactly 75 nt; FL no-UMI = 100; FL UMI raw R1/R2 = 100.
+# Raw read lengths encode the intended UMI architectures explicitly.
+# QS_noUMI = 60 biological + 15 poly(A) = 75 nt.
+# QS_UMI = 6 UMI + 4 spacer + 60 biological + 9 poly(A) = 79 nt.
+# FL_UMI uses a 94-nt biological R1 and an R2 containing 8 UMI + 100 biological nt.
 assert {len(s) for _,s in read_fastq(DATA/'QS_noUMI_R1.fastq.gz')} == {75}
-assert {len(s) for _,s in read_fastq(DATA/'QS_UMI_R1.fastq.gz')} == {75}
+assert {len(s) for _,s in read_fastq(DATA/'QS_UMI_R1.fastq.gz')} == {79}
 assert {len(s) for _,s in read_fastq(DATA/'FL_noUMI_R1.fastq.gz')} == {100}
-assert {len(s) for _,s in read_fastq(DATA/'FL_UMI_R1.fastq.gz')} == {100}
+assert {len(s) for _,s in read_fastq(DATA/'FL_UMI_R1.fastq.gz')} == {94}
+assert {len(s) for _,s in read_fastq(DATA/'FL_UMI_R2.fastq.gz')} == {108}
 
 print('Synthetic test fixture built successfully at', TEST)
 print(f'Checksum manifest written for {len(CHECKSUM_FILES)} canonical fixture files: {checksum_path}')

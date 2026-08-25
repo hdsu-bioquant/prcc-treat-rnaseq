@@ -14,16 +14,23 @@ current core route:
 | library_id | layout | assay | UMI | purpose |
 |---|---|---|---|---|
 | `FL_noUMI` | paired | full length | no | baseline FL path + splice alignment |
-| `FL_UMI` | paired | full length | 6 nt at R1 start | proves UMI logic is assay-independent |
+| `FL_UMI` | paired | full length | 8 nt at R2 start, discard 0 | non-Lexogen UMI architecture + dedup |
 | `QS_noUMI` | single | QuantSeq | no | QuantSeq trimming/alignment path |
-| `QS_UMI` | single | QuantSeq | 6 nt at R1 start | UMI extraction + dedup + QuantSeq trimming |
+| `QS_UMI` | single | QuantSeq | 6 nt at R1 start + 4 nt discard | Lexogen-like UMI + spacer extraction, dedup + QuantSeq trimming |
 
 The four libraries deliberately map to only two `sample_id` values, testing that multiple
 libraries may belong to one biological sample. The extra `batch` column in `samples.tsv`
 demonstrates that additional metadata columns are accepted without controlling workflow
 routing.
 
-The UMI fixtures deliberately contain all three important deduplication cases:
+The UMI fixtures deliberately use **different extraction specifications**. `FL_UMI` carries an
+8-base UMI at the start of R2 with no adjacent discard bases. `QS_UMI` carries a 6-base UMI
+at the start of R1 followed by the literal four-base synthetic spacer `TATA`; the sample sheet
+describes that spacer only as `umi_discard_bases=4`, so the workflow must not depend on its
+sequence identity. This mirrors the real Lexogen structure that motivated the UMI refactor while
+proving that the implementation is not hard-coded to Lexogen.
+
+The UMI fixtures also deliberately contain all three important deduplication cases:
 
 1. same mapping position + same UMI -> collapse;
 2. same mapping position + different UMI -> retain;
@@ -61,9 +68,11 @@ The script resolves the repository root automatically and then:
 2. verifies the committed synthetic fixture using `checksums.sha256`;
 3. removes any previous `tests/synthetic/output/`;
 4. removes and rebuilds `tests/synthetic/reference/star_index/` and generated `gene_lengths.tsv`;
-5. runs the normal Snakemake workflow with `tests/synthetic/config.yaml`;
-6. validates the resulting **production-style output structure** and exact expected values;
-7. verifies the generated deterministic output hashes against the frozen reference baseline in
+5. runs the normal Snakemake workflow with `tests/synthetic/config.yaml`, retaining `temp()`
+   intermediates with `--notemp` so UMI extraction can be inspected directly;
+6. validates the exact raw-to-extracted UMI FASTQ transformation before checking alignment/counts;
+7. validates the resulting **production-style output structure** and exact expected values;
+8. verifies the generated deterministic output hashes against the frozen reference baseline in
    `expected/validation_checksums.sha256`.
 
 A successful run ends with:
@@ -71,6 +80,21 @@ A successful run ends with:
 ```text
 Synthetic smoke test PASSED.
 ```
+
+### Development mode before re-freezing the deterministic baseline
+
+When an intentional workflow/fixture change is expected to alter deterministic canonical files,
+run:
+
+```bash
+bash tests/synthetic/run_test.sh --skip-frozen-baseline
+```
+
+This still validates fixture semantics, exact UMI extraction, biological expectations, the output
+contract, package checksums, and the newly generated deterministic validation manifest. It skips
+only comparison with the maintainer-frozen `expected/validation_checksums.sha256`. After two clean
+runs reproduce the same generated validation manifest, review the changes and deliberately replace
+the frozen baseline. Normal qualification runs should omit this option.
 
 ### Execution-environment independence
 
@@ -121,7 +145,13 @@ tests/synthetic/output/
 └── intermediate/                  # disposable processing artefacts
 ```
 
-`validate_results.py` checks the exact raw counts and UMI molecule counts, the canonical
+`validate_results.py` first verifies the two declared UMI architectures against the committed raw
+FASTQs and then checks the retained UMI-extracted FASTQs byte-semantically: `FL_UMI` must remove
+exactly the first 8 bases from R2 while leaving R1 sequence/quality unchanged, and `QS_UMI` must
+remove exactly 6 UMI + 4 spacer bases from R1. It also verifies that the extracted UMI is propagated
+into processed read names for downstream UMI-aware deduplication.
+
+It then checks the exact raw counts and UMI molecule counts, the canonical
 `gene_expression.tsv` schema (including FL normalization vs QS `NA` values), selected stable
 QC metrics, the library-level MultiQC summary, complete manifest-driven software-version
 provenance, restricted BAM/FastQC presence, run metadata, both generated checksum files, and
@@ -147,7 +177,7 @@ The reference `expected/validation_checksums.sha256` is now frozen. A successful
 run therefore demonstrates both numerical/schema correctness and byte-for-byte agreement of
 the 14 deterministic canonical products with the reference installation. The frozen file is
 maintainer-owned and must not be silently regenerated; it should change only when an intentional
-output-contract change has been reviewed and reproduced in clean runs.
+deterministic-output change has been reviewed and reproduced in clean runs.
 
 ## Partner-site qualification
 

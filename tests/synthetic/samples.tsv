@@ -1,5 +1,5 @@
-library_id	sample_id	assay	layout	strandedness	fq1	fq2	has_umi	umi_pattern	umi_location	batch
-FL_noUMI	SYN_SAMPLE_1	full_length	paired	forward	tests/synthetic/data/FL_noUMI_R1.fastq.gz	tests/synthetic/data/FL_noUMI_R2.fastq.gz	false	-	-	synthetic
-FL_UMI	SYN_SAMPLE_2	full_length	paired	forward	tests/synthetic/data/FL_UMI_R1.fastq.gz	tests/synthetic/data/FL_UMI_R2.fastq.gz	true	NNNNNN	read1_start	synthetic
-QS_noUMI	SYN_SAMPLE_1	quantseq	single	forward	tests/synthetic/data/QS_noUMI_R1.fastq.gz	-	false	-	-	synthetic
-QS_UMI	SYN_SAMPLE_2	quantseq	single	forward	tests/synthetic/data/QS_UMI_R1.fastq.gz	-	true	NNNNNN	read1_start	synthetic
+library_id	sample_id	assay	layout	strandedness	fq1	fq2	has_umi	umi_pattern	umi_location	umi_discard_bases	batch
+FL_noUMI	SYN_SAMPLE_1	full_length	paired	forward	tests/synthetic/data/FL_noUMI_R1.fastq.gz	tests/synthetic/data/FL_noUMI_R2.fastq.gz	false	-	-	-	synthetic
+FL_UMI	SYN_SAMPLE_2	full_length	paired	forward	tests/synthetic/data/FL_UMI_R1.fastq.gz	tests/synthetic/data/FL_UMI_R2.fastq.gz	true	NNNNNNNN	read2_start	0	synthetic
+QS_noUMI	SYN_SAMPLE_1	quantseq	single	forward	tests/synthetic/data/QS_noUMI_R1.fastq.gz	-	false	-	-	-	synthetic
+QS_UMI	SYN_SAMPLE_2	quantseq	single	forward	tests/synthetic/data/QS_UMI_R1.fastq.gz	-	true	NNNNNN	read1_start	4	synthetic

@@ -2,6 +2,16 @@
 
 set -euo pipefail
 
+SKIP_FROZEN_BASELINE=false
+if [[ "${1:-}" == "--skip-frozen-baseline" ]]; then
+    SKIP_FROZEN_BASELINE=true
+    shift
+fi
+if [[ $# -ne 0 ]]; then
+    echo "Usage: $0 [--skip-frozen-baseline]" >&2
+    exit 2
+fi
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
@@ -95,8 +105,13 @@ snakemake \
     --cores 2 \
     --software-deployment-method apptainer \
     --apptainer-args "$APPTAINER_TEST_ARGS" \
+    --notemp \
     --printshellcmds
 
 echo
 echo "Validating synthetic results..."
-python "$TEST_DIR/validate_results.py"
+VALIDATOR_ARGS=()
+if [[ "$SKIP_FROZEN_BASELINE" == true ]]; then
+    VALIDATOR_ARGS+=(--skip-frozen-baseline)
+fi
+python "$TEST_DIR/validate_results.py" "${VALIDATOR_ARGS[@]}"

@@ -3,6 +3,8 @@
 
 from pathlib import Path
 from html import unescape
+import argparse
+import gzip
 import hashlib
 import re
 import sys
@@ -20,11 +22,35 @@ LIBRARIES = ["FL_noUMI", "FL_UMI", "QS_noUMI", "QS_UMI"]
 UMI_LIBRARIES = ["FL_UMI", "QS_UMI"]
 FL_LIBRARIES = ["FL_noUMI", "FL_UMI"]
 QS_LIBRARIES = ["QS_noUMI", "QS_UMI"]
+UMI_FIXTURE_SPECS = {
+    "FL_UMI": {"pattern": "NNNNNNNN", "location": "read2_start", "discard_bases": 0},
+    "QS_UMI": {"pattern": "NNNNNN", "location": "read1_start", "discard_bases": 4},
+}
 EXPRESSION_COLUMNS = [
     "gene_id", "gene_name", "gene_type", "gene_length",
     "unstranded", "stranded_first", "stranded_second",
     "fpkm", "fpkm_uq", "tpm", "umi_molecule_count",
 ]
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Validate the pRCC-TREAT deterministic synthetic workflow outputs."
+    )
+    parser.add_argument(
+        "--skip-frozen-baseline",
+        action="store_true",
+        help=(
+            "validate fixture semantics, biological expectations, output contract and generated "
+            "checksums, but do not compare results/run/validation_checksums.sha256 with the "
+            "maintainer-frozen baseline. Intended only while deliberately changing the fixture/"
+            "workflow before a reviewed re-freeze."
+        ),
+    )
+    return parser.parse_args()
+
+
+ARGS = parse_args()
 
 
 def fail(msg):
@@ -53,6 +79,152 @@ def assert_equal(label, observed, expected):
         print("\nExpected:\n", expected, file=sys.stderr)
         raise SystemExit(1)
     pass_(label)
+
+
+
+def read_fastq_records(path):
+    """Return FASTQ records as (header_without_at, sequence, quality)."""
+    if not path.is_file():
+        fail(f"missing FASTQ {path.relative_to(ROOT)}")
+
+    records = []
+    with gzip.open(path, "rt") as fh:
+        line_no = 0
+        while True:
+            header = fh.readline()
+            if not header:
+                break
+            line_no += 1
+            sequence = fh.readline()
+            plus = fh.readline()
+            quality = fh.readline()
+            if not sequence or not plus or not quality:
+                fail(f"truncated FASTQ record beginning at line {line_no} in {path.relative_to(ROOT)}")
+            line_no += 3
+
+            header = header.rstrip("\n")
+            sequence = sequence.rstrip("\n")
+            plus = plus.rstrip("\n")
+            quality = quality.rstrip("\n")
+            if not header.startswith("@") or not plus.startswith("+"):
+                fail(f"malformed FASTQ record beginning at line {line_no - 3} in {path.relative_to(ROOT)}")
+            if len(sequence) != len(quality):
+                fail(f"sequence/quality length mismatch in {path.relative_to(ROOT)} at {header}")
+            records.append((header[1:], sequence, quality))
+    return records
+
+
+def raw_read_id(header):
+    token = header.split()[0]
+    return re.sub(r"/[12]$", "", token)
+
+
+def validate_umi_fixture_definition():
+    """Protect the intended synthetic UMI architectures before workflow execution."""
+    samples = pd.read_csv(TEST / "samples.tsv", sep="\t", dtype=str, keep_default_na=False)
+    required = {"library_id", "has_umi", "umi_pattern", "umi_location", "umi_discard_bases"}
+    missing = sorted(required - set(samples.columns))
+    if missing:
+        fail("synthetic samples.tsv is missing UMI fixture column(s): " + ", ".join(missing))
+    samples = samples.set_index("library_id")
+
+    if set(samples.index) != set(LIBRARIES):
+        fail(f"synthetic samples.tsv libraries differ from expected: {list(samples.index)}")
+
+    for library, spec in UMI_FIXTURE_SPECS.items():
+        row = samples.loc[library]
+        if row["has_umi"].lower() != "true":
+            fail(f"{library} must have has_umi=true in the synthetic fixture")
+        observed = {
+            "pattern": row["umi_pattern"],
+            "location": row["umi_location"],
+            "discard_bases": int(row["umi_discard_bases"]),
+        }
+        if observed != spec:
+            fail(f"{library} UMI fixture spec differs (observed={observed}, expected={spec})")
+
+    for library in sorted(set(LIBRARIES) - set(UMI_LIBRARIES)):
+        row = samples.loc[library]
+        if row["has_umi"].lower() != "false":
+            fail(f"{library} must have has_umi=false in the synthetic fixture")
+        if any(row[col] not in {"", "-"} for col in ("umi_pattern", "umi_location", "umi_discard_bases")):
+            fail(f"{library} non-UMI fixture row contains substantive UMI metadata")
+
+    manifest = pd.read_csv(EXPECTED / "read_manifest.tsv", sep="\t", dtype=str).set_index("read_id")
+
+    fl_r1 = read_fastq_records(TEST / "data" / "FL_UMI_R1.fastq.gz")
+    fl_r2 = read_fastq_records(TEST / "data" / "FL_UMI_R2.fastq.gz")
+    if len(fl_r1) != len(fl_r2):
+        fail("FL_UMI raw R1/R2 record counts differ")
+    for r1, r2 in zip(fl_r1, fl_r2):
+        rid1 = raw_read_id(r1[0])
+        rid2 = raw_read_id(r2[0])
+        if rid1 != rid2:
+            fail(f"FL_UMI paired raw read IDs differ: {r1[0]} vs {r2[0]}")
+        expected_umi = manifest.loc[rid1, "umi"]
+        if r2[1][:8] != expected_umi:
+            fail(f"FL_UMI R2 does not start with expected 8-nt UMI for {rid1}")
+        if len(r1[1]) != 94 or len(r2[1]) != 108:
+            fail(f"FL_UMI raw read lengths do not encode the intended R2-start UMI for {rid1}")
+
+    qs = read_fastq_records(TEST / "data" / "QS_UMI_R1.fastq.gz")
+    for header, sequence, _quality in qs:
+        rid = raw_read_id(header)
+        expected_umi = manifest.loc[rid, "umi"]
+        if sequence[:6] != expected_umi:
+            fail(f"QS_UMI R1 does not start with expected 6-nt UMI for {rid}")
+        if sequence[6:10] != "TATA":
+            fail(f"QS_UMI R1 is missing the 4-nt TATA spacer at bases 7-10 for {rid}")
+        if len(sequence) != 79:
+            fail(f"QS_UMI raw read length is not 79 nt for {rid}")
+
+    pass_("synthetic UMI fixture definitions (R2/8+0 and R1/6+4 TATA)")
+
+
+def assert_umi_in_processed_header(header, umi, library):
+    # Raw synthetic names deliberately do not contain the UMI sequence. UMI-tools
+    # must therefore add it to the processed name for downstream deduplication.
+    token = header.split()[0]
+    if umi not in token:
+        fail(f"{library} processed read name does not contain extracted UMI {umi}: {header}")
+
+
+def validate_umi_extraction_intermediates():
+    """Verify exact raw->UMI-extracted transformations, independent of STAR soft clipping."""
+    manifest = pd.read_csv(EXPECTED / "read_manifest.tsv", sep="\t", dtype=str).set_index("read_id")
+
+    raw_fl_r1 = read_fastq_records(TEST / "data" / "FL_UMI_R1.fastq.gz")
+    raw_fl_r2 = read_fastq_records(TEST / "data" / "FL_UMI_R2.fastq.gz")
+    out_fl_r1 = read_fastq_records(INTERMEDIATE / "libraries" / "FL_UMI" / "preprocess" / "R1.umi.fastq.gz")
+    out_fl_r2 = read_fastq_records(INTERMEDIATE / "libraries" / "FL_UMI" / "preprocess" / "R2.umi.fastq.gz")
+    if not (len(raw_fl_r1) == len(raw_fl_r2) == len(out_fl_r1) == len(out_fl_r2)):
+        fail("FL_UMI record count changed during UMI extraction")
+    for raw1, raw2, out1, out2 in zip(raw_fl_r1, raw_fl_r2, out_fl_r1, out_fl_r2):
+        rid = raw_read_id(raw1[0])
+        if raw_read_id(raw2[0]) != rid:
+            fail(f"FL_UMI raw pair IDs differ for {rid}")
+        umi = manifest.loc[rid, "umi"]
+        if out1[1] != raw1[1] or out1[2] != raw1[2]:
+            fail(f"FL_UMI R1 was unexpectedly altered during R2-start UMI extraction for {rid}")
+        if out2[1] != raw2[1][8:] or out2[2] != raw2[2][8:]:
+            fail(f"FL_UMI R2 did not remove exactly the 8-nt UMI for {rid}")
+        assert_umi_in_processed_header(out1[0], umi, "FL_UMI")
+        assert_umi_in_processed_header(out2[0], umi, "FL_UMI")
+
+    raw_qs = read_fastq_records(TEST / "data" / "QS_UMI_R1.fastq.gz")
+    out_qs = read_fastq_records(INTERMEDIATE / "libraries" / "QS_UMI" / "preprocess" / "R1.umi.fastq.gz")
+    if len(raw_qs) != len(out_qs):
+        fail("QS_UMI record count changed during UMI extraction")
+    for raw, out in zip(raw_qs, out_qs):
+        rid = raw_read_id(raw[0])
+        umi = manifest.loc[rid, "umi"]
+        if raw[1][6:10] != "TATA":
+            fail(f"QS_UMI raw fixture spacer unexpectedly differs from TATA for {rid}")
+        if out[1] != raw[1][10:] or out[2] != raw[2][10:]:
+            fail(f"QS_UMI did not remove exactly 6 UMI + 4 discard bases for {rid}")
+        assert_umi_in_processed_header(out[0], umi, "QS_UMI")
+
+    pass_("exact UMI extraction intermediates (including QuantSeq spacer removal)")
 
 
 def sha256(path):
@@ -138,11 +310,17 @@ def compare_checksum_files(observed_path, expected_path):
     return len(expected)
 
 
+validate_umi_fixture_definition()
+
 # Production-style top-level contract.
 for directory in (RESULTS, RESTRICTED, INTERMEDIATE):
     if not directory.is_dir():
         fail(f"missing output directory {directory.relative_to(ROOT)}")
 pass_("results/restricted/intermediate output structure")
+
+# UMI extraction intermediates are retained by run_test.sh via --notemp so the
+# regression test can detect incorrect 5-prime preprocessing before alignment.
+validate_umi_extraction_intermediates()
 
 # Exact raw-count matrix.
 raw_path = RESULTS / "matrices" / "raw_gene_counts.tsv"
@@ -349,15 +527,19 @@ validation_n = verify_checksum_file(validation_path, RESULTS)
 pass_(f"package checksums ({package_n} files)")
 pass_(f"validation checksums ({validation_n} deterministic files)")
 
-# Cross-installation qualification: the deterministic output subset must match the
-# maintainer-approved reference hashes committed with this synthetic fixture.
-frozen_validation = EXPECTED / "validation_checksums.sha256"
-frozen_n = compare_checksum_files(validation_path, frozen_validation)
-if frozen_n != validation_n:
-    fail(
-        "frozen validation checksum entry count differs from generated validation set "
-        f"(generated={validation_n}, frozen={frozen_n})"
-    )
-pass_(f"frozen cross-installation validation baseline ({frozen_n} files)")
+# Cross-installation qualification: by default the deterministic output subset must
+# match the maintainer-approved frozen reference. During an intentional refactor,
+# --skip-frozen-baseline permits all other validation to complete before re-freezing.
+if ARGS.skip_frozen_baseline:
+    pass_("frozen cross-installation validation baseline comparison intentionally skipped")
+else:
+    frozen_validation = EXPECTED / "validation_checksums.sha256"
+    frozen_n = compare_checksum_files(validation_path, frozen_validation)
+    if frozen_n != validation_n:
+        fail(
+            "frozen validation checksum entry count differs from generated validation set "
+            f"(generated={validation_n}, frozen={frozen_n})"
+        )
+    pass_(f"frozen cross-installation validation baseline ({frozen_n} files)")
 
 print("\nSynthetic smoke test PASSED.")

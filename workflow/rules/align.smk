@@ -1,5 +1,8 @@
 # align.smk — library-level UMI preprocessing + assay-aware preprocessing/STAR
 # UMI extraction is intentionally assay-independent and occurs before the assay split.
+# UMI-tools dedup uses a fixed workflow-owned seed so representative-read tie
+# breaking is reproducible across otherwise identical runs.
+UMI_DEDUP_RANDOM_SEED = 1
 
 # ----------------------------- UMI preprocessing -----------------------------#
 rule umi_extract_paired:
@@ -215,7 +218,8 @@ rule umi_dedup:
     output:
         bam = join(RESTRICTED, "libraries/{library}/alignments/umi_dedup.bam")
     params:
-        paired = umi_dedup_paired_flag
+        paired = umi_dedup_paired_flag,
+        random_seed = UMI_DEDUP_RANDOM_SEED
     log:
         join(RESTRICTED, "libraries/{library}/logs/umi_dedup.log")
     wildcard_constraints:
@@ -226,5 +230,6 @@ rule umi_dedup:
     shell:
         r"""
         mkdir -p "$(dirname {output.bam})" "$(dirname {log})"
-        umi_tools dedup {params.paired} -I {input.bam} -S {output.bam} --log {log}
+        umi_tools dedup {params.paired} --random-seed={params.random_seed} \
+          -I {input.bam} -S {output.bam} --log {log}
         """

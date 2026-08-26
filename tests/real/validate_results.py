@@ -18,6 +18,7 @@ import gzip
 import hashlib
 import re
 import sys
+from collections import Counter
 from html import unescape
 from pathlib import Path
 
@@ -252,31 +253,84 @@ def validate_pinned_input_semantics():
             fail(f"gzip integrity check failed for {path}: {exc}")
 
     # Explicitly protect the observed Lexogen structure in the exact qualification input.
+    # The kit architecture is a 6-nt UMI followed by a 4-nt TATA-like spacer, but the
+    # sequenced spacer is not literally TATA in every molecule. The pipeline therefore
+    # correctly treats these as four discard bases rather than motif-matched bases.
+    #
+    # Because the compressed FASTQ identity is already pinned by byte size + MD5 above,
+    # this is a structural sanity check rather than a second file-identity test. We scan
+    # the full (small) qualification FASTQ so the reported composition is stable and useful
+    # when reviewing qualification logs.
     qs_fastq = actual_paths[("REAL_QS_UMI", "R1")]
+    expected_spacer = "TATA"
+    min_expected_base_fraction = 0.80
     n = 0
+    exact_spacer = 0
+    lengths = Counter()
+    first10 = [Counter() for _ in range(10)]
+
     with gzip.open(qs_fastq, "rt") as fh:
-        while n < 10000:
+        while True:
             header = fh.readline()
             if not header:
                 break
-            sequence = fh.readline().rstrip("\n")
+            sequence = fh.readline().rstrip("\n").upper()
             plus = fh.readline()
             quality = fh.readline().rstrip("\n")
             if not plus or not quality:
                 fail("SRR16932032 FASTQ is truncated")
             if not header.startswith("@") or not plus.startswith("+"):
                 fail("SRR16932032 FASTQ record is malformed")
-            if len(sequence) != 101 or len(quality) != 101:
-                fail(f"SRR16932032 qualification read {n + 1} is not 101 nt")
-            if sequence[6:10] != "TATA":
-                fail(
-                    f"SRR16932032 qualification read {n + 1} does not contain TATA "
-                    "immediately after the 6-base UMI"
-                )
+            if len(sequence) != len(quality):
+                fail(f"SRR16932032 qualification read {n + 1} has sequence/quality length mismatch")
+            lengths[len(sequence)] += 1
+            if len(sequence) < 10:
+                fail(f"SRR16932032 qualification read {n + 1} is shorter than the 10-base UMI+discard prefix")
+            if sequence[6:10] == expected_spacer:
+                exact_spacer += 1
+            for pos, base in enumerate(sequence[:10]):
+                first10[pos][base] += 1
             n += 1
-    if n < 10000:
-        fail(f"SRR16932032 contained only {n} records while checking UMI architecture")
-    pass_("exact pinned ENA bytes + realistic QuantSeq 6-nt UMI / 4-nt TATA architecture")
+
+    if n == 0:
+        fail("SRR16932032 FASTQ contains no reads")
+    if set(lengths) != {101}:
+        fail(f"SRR16932032 qualification reads are not uniformly 101 nt: {dict(lengths)}")
+
+    spacer_fractions = []
+    for offset, expected_base in enumerate(expected_spacer, start=6):
+        observed = first10[offset][expected_base] / n
+        spacer_fractions.append(observed)
+        if observed < min_expected_base_fraction:
+            fail(
+                f"SRR16932032 lacks the expected strong {expected_spacer} spacer signature: "
+                f"position {offset + 1} has {expected_base} in only {observed * 100:.2f}% "
+                f"of reads (minimum {min_expected_base_fraction * 100:.0f}%)"
+            )
+
+    exact_fraction = exact_spacer / n
+    umi_composition = []
+    for pos in range(6):
+        parts = []
+        for base in "ACGTN":
+            count = first10[pos][base]
+            if count:
+                parts.append(f"{base}={100.0 * count / n:.2f}%")
+        umi_composition.append(f"{pos + 1}:" + ",".join(parts))
+
+    print(
+        f"INFO: SRR16932032 reads={n:,}; length=101 nt; exact TATA at positions 7-10="
+        f"{exact_spacer:,}/{n:,} ({exact_fraction * 100:.2f}%)"
+    )
+    print(
+        "INFO: SRR16932032 spacer-position support: "
+        + ", ".join(
+            f"{pos + 7}{base}={fraction * 100:.2f}%"
+            for pos, (base, fraction) in enumerate(zip(expected_spacer, spacer_fractions))
+        )
+    )
+    print("INFO: SRR16932032 UMI-position base composition: " + "; ".join(umi_composition))
+    pass_("exact pinned ENA bytes + realistic QuantSeq 6-nt UMI / 4-nt TATA-like discard architecture")
 
 
 validate_pinned_input_semantics()

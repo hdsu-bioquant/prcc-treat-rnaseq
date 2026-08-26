@@ -81,6 +81,17 @@ A successful run ends with:
 Synthetic smoke test PASSED.
 ```
 
+
+### Container/software upgrades
+
+The synthetic validator also checks the maintained UMI-tools declaration. The current qualified
+version is **UMI-tools 1.1.6**, with deduplication using the workflow-owned `--random-seed=1` after
+deterministic canonicalization of equal-coordinate BAM ties.
+After changing a pinned container, refresh the local image with `bash containers/pull_images.sh` before
+running this test. A container-version change does not by itself require re-freezing the deterministic
+baseline: first run the normal smoke test. Re-freeze only if the deliberately deterministic biological/QC
+products actually change, and then only after two clean runs reproduce exactly.
+
 ### Development mode before re-freezing the deterministic baseline
 
 When an intentional workflow/fixture change is expected to alter deterministic canonical files,

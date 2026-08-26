@@ -450,11 +450,15 @@ for _tool_name, _tool_spec in TOOL_REGISTRY.items():
             f"Software manifest entry {_tool_name!r} is missing: {', '.join(sorted(_missing))}"
         )
 
-def _img(name, uri):
-    local = os.path.join(CONTAINER_DIR, name + ".sif")
-    return local if os.path.exists(local) else uri
+def _img(name, spec):
+    # A manifest entry may override the historical <tool>.sif filename. The
+    # pull helper version-probes tools that declare version_probe before an
+    # existing local image is reused.
+    local_name = spec.get("local_sif", name + ".sif")
+    local = os.path.join(CONTAINER_DIR, local_name)
+    return local if os.path.exists(local) else spec["uri"]
 
-IMG = {name: _img(name, spec["uri"]) for name, spec in TOOL_REGISTRY.items()}
+IMG = {name: _img(name, spec) for name, spec in TOOL_REGISTRY.items()}
 
 
 def used_tool_names():

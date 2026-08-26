@@ -71,6 +71,7 @@ Before starting, the site should have:
 - a working Snakemake controller environment (consortium-tested version: 9.19.0);
 - Apptainer/Singularity available on the machines that execute jobs;
 - the repository available on a filesystem visible to those jobs;
+- the pinned default container images pre-pulled for the current checkout (`bash containers/pull_images.sh`);
 - the exact GDC resource bundle installed and passing the fast structural verification;
 - enough local/HPC resources for human STAR alignment.
 
@@ -351,6 +352,12 @@ python tests/real/validate_results.py --run-dir "$RUN_DIR"
 ## 7. Maintainer-only: demonstrate two clean deterministic runs
 
 This section is for freezing the first realistic baseline, not for ordinary partner operation.
+If a pinned analysis container or deterministic algorithm parameter changes during development, discard
+pre-change candidate runs and start the formal two-run comparison again with the updated software stack.
+For UMI-tools, the maintained qualification currently requires version 1.1.6 and the fixed workflow-owned
+`--random-seed=1`. UMI-bearing BAMs are also passed through the workflow's deterministic equal-coordinate
+canonicalization step before deduplication; this is required because a fixed seed only guarantees the same
+result when equivalent alignments reach UMI-tools in the same order.
 
 After a successful first run with `--skip-frozen-baseline`, preserve its generated deterministic
 manifest outside `output/`:

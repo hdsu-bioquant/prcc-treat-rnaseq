@@ -1,7 +1,8 @@
 # align.smk — library-level UMI preprocessing + assay-aware preprocessing/STAR
 # UMI extraction is intentionally assay-independent and occurs before the assay split.
-# UMI-tools dedup uses a fixed workflow-owned seed so representative-read tie
-# breaking is reproducible across otherwise identical runs.
+# UMI-tools 1.1.6 makes --random-seed sufficient for deterministic tie
+# breaking (older releases also depended on PYTHONHASHSEED). Keep the seed
+# workflow-owned so consortium sites cannot accidentally diverge.
 UMI_DEDUP_RANDOM_SEED = 1
 
 # ----------------------------- UMI preprocessing -----------------------------#
@@ -211,10 +212,42 @@ rule sort_index_qs:
         """
 
 # ------------------------- assay-independent UMI dedup ----------------------#
-rule umi_dedup:
+# STAR + coordinate sorting can emit equal-coordinate alignments in a different
+# order across otherwise identical runs. UMI-tools 1.1.6 makes seeded tie
+# breaking deterministic for a fixed input order, so canonicalize those
+# coordinate ties before deduplication. The site-retained genomic.sorted.bam is
+# left untouched; this canonical BAM is a disposable UMI-only intermediate.
+rule canonicalize_umi_bam:
     input:
         bam = join(RESTRICTED, "libraries/{library}/alignments/genomic.sorted.bam"),
         bai = join(RESTRICTED, "libraries/{library}/alignments/genomic.sorted.bam.bai")
+    output:
+        bam = temp(join(INTERMEDIATE, "libraries/{library}/alignments/genomic.umi_canonical.bam")),
+        bai = temp(join(INTERMEDIATE, "libraries/{library}/alignments/genomic.umi_canonical.bam.bai"))
+    params:
+        script = join(SCRIPT_DIR, "canonicalize_umi_bam.py"),
+        tmp = lambda wc: join(TMPDIR, "canonicalize_umi_" + wc.library)
+    log:
+        join(RESTRICTED, "libraries/{library}/logs/umi_bam_canonicalize.log")
+    wildcard_constraints:
+        library = UMI_LIBRARY_PATTERN
+    threads: 2
+    container: IMG["umitools"]
+    resources:
+        mem_mb = 8000, runtime = 240
+    shell:
+        r"""
+        mkdir -p "$(dirname {output.bam})" {params.tmp:q} "$(dirname {log})"
+        python {params.script:q} \
+          --input {input.bam:q} --output {output.bam:q} \
+          --tmpdir {params.tmp:q} --threads {threads} > {log:q} 2>&1
+        """
+
+
+rule umi_dedup:
+    input:
+        bam = join(INTERMEDIATE, "libraries/{library}/alignments/genomic.umi_canonical.bam"),
+        bai = join(INTERMEDIATE, "libraries/{library}/alignments/genomic.umi_canonical.bam.bai")
     output:
         bam = join(RESTRICTED, "libraries/{library}/alignments/umi_dedup.bam")
     params:

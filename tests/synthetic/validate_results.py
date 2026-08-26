@@ -470,6 +470,12 @@ if not required_software_columns.issubset(software.columns):
 for tool in expected_tools:
     if not str(software.loc[tool, "version"]).strip():
         fail(f"software_versions.tsv has an empty version for {tool}")
+if str(software.loc["umitools", "version"]) != "1.1.6":
+    fail("synthetic qualification requires maintained UMI-tools version 1.1.6")
+if str(software.loc["umitools", "container_source"]) != (
+    "docker://quay.io/biocontainers/umi_tools:1.1.6--py39hbcbf7aa_0"
+):
+    fail("synthetic qualification UMI-tools container source differs from maintained 1.1.6 image")
 for tool in expected_tools:
     if tool == "snakemake":
         if software.loc[tool, "version_source"] != "runtime":

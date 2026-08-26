@@ -181,11 +181,17 @@ without re-reading the ~30 GB STAR installation on every run.
 bash containers/pull_images.sh
 ```
 
-Pre-pulling to `containers/sif/<name>.sif` decouples runs from flaky registry access (e.g. quay.io TLS
+Pre-pulling to `containers/sif/` decouples runs from flaky registry access (e.g. quay.io TLS
 timeouts). `containers/pull_images.sh` reads the pinned image list directly from
-`workflow/config/software_versions.yaml`, which is also used by the workflow and provenance. The pipeline
-uses the local `.sif` if present, else falls back to the declared `docker://` URI (pulled on demand into
-your Apptainer cache).
+`workflow/config/software_versions.yaml`, which is also used by the workflow and provenance. Local images
+use the stable `containers/sif/<name>.sif` convention. Tools with a manifest `version_probe` are checked
+before an existing image is reused, so an obsolete local image cannot silently shadow a newer pinned URI.
+
+After upgrading an existing checkout, rerun `bash containers/pull_images.sh`. The development transition
+to UMI-tools 1.1.6 temporarily used `containers/sif/umitools-1.1.6.sif`; the pull helper now migrates a
+verified copy back to the stable `containers/sif/umitools.sif` name, replacing an older 1.1.4 image if
+necessary and removing the temporary versioned file. If no valid local image is present, the workflow
+falls back to the declared `docker://` URI (pulled on demand into the Apptainer cache).
 
 ---
 
@@ -636,7 +642,7 @@ The authoritative pinned software/container registry is
 |---|---|
 | `quay.io/biocontainers/star:2.7.5c--0` | STAR alignment + GeneCounts (both branches) |
 | `quay.io/biocontainers/samtools:1.19--h50ea8bc_0` | sort / index |
-| `quay.io/biocontainers/umi_tools:1.1.4--py39hf95cd2a_2` | UMI extract + dedup (UMI-bearing libraries) |
+| `quay.io/biocontainers/umi_tools:1.1.6--py39hbcbf7aa_0` | UMI extract + BAM tie canonicalization + deterministic seeded dedup (UMI-bearing libraries) |
 | `quay.io/biocontainers/bbmap:39.06--h92535d8_0` | BBDuk polyA/adapter trim (QuantSeq) |
 | `quay.io/biocontainers/fastp:0.23.4--hadf994f_2` | optional full-length adapter trimming |
 | `quay.io/biocontainers/htseq:2.0.9--py39h918f1d6_0` | HTSeq counting (UMI-dedup secondary) |
@@ -644,8 +650,23 @@ The authoritative pinned software/container registry is
 | `quay.io/biocontainers/pandas:1.5.2` | canonical expression/QC tables, matrices, manifests |
 
 Reference: **GRCh38.d1.vd1 + GENCODE v36 + GDC STAR 2.7.5c index**, all GDC-exact and MD5-verified.
-`_img()` prefers a local `containers/sif/<name>.sif` (pull once with `containers/pull_images.sh`, §0.6) and
-falls back to the `docker://` URI otherwise.
+`_img()` prefers the manifest-declared local SIF (normally `containers/sif/<name>.sif`) and falls back to
+the `docker://` URI otherwise. UMI-tools deduplication uses the workflow-owned fixed `--random-seed=1`;
+UMI-tools 1.1.6 is pinned because this release makes that seed sufficient for deterministic random
+tie-breaking without also requiring `PYTHONHASHSEED`.
+
+A fixed random seed alone does not make an analysis reproducible if equivalent alignments reach UMI-tools
+in a different order. STAR plus coordinate sorting may legitimately order alignments that share the same
+coordinate differently across runs. For UMI libraries the workflow therefore creates a disposable
+canonical BAM before deduplication: reference/position order is preserved, while records tied at the same
+coordinate are placed in a deterministic strand/SAM-record order. The site-retained
+`genomic.sorted.bam` is not modified. This canonicalization affects only the UMI deduplication path.
+
+The UMI-tools pin is independent of the maintained GDC reference identity and STAR/GDC parameters.
+Non-UMI full-length libraries never invoke UMI-tools. UMI-bearing libraries use UMI-tools for their
+metadata-driven pre-alignment extraction and for the secondary molecule-count deduplication path; those
+routes are therefore requalified after a UMI-tools upgrade even though GDC itself does not define a UMI
+processing procedure.
 
 The official profile templates set `rerun-triggers: mtime` — Snakemake re-runs a job only when its **input files** change (by
 mtime), not when a rule's code, parameters, or container reference changes. Editing comments or config

@@ -526,6 +526,12 @@ if sorted(software.index.tolist()) != sorted(expected_tools):
     fail(f"software tool set differs: {sorted(software.index.tolist())}")
 if (software["version"].astype(str).str.strip() == "").any():
     fail("software_versions.tsv contains an empty version")
+if str(software.loc["umitools", "version"]) != "1.1.6":
+    fail("realistic qualification requires maintained UMI-tools version 1.1.6")
+if str(software.loc["umitools", "container_source"]) != (
+    "docker://quay.io/biocontainers/umi_tools:1.1.6--py39hbcbf7aa_0"
+):
+    fail("realistic qualification UMI-tools container source differs from maintained 1.1.6 image")
 pass_("software-version provenance")
 
 multiqc = RESULTS / "qc" / "multiqc_report.html"

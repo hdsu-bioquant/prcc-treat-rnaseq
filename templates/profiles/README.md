@@ -83,9 +83,13 @@ larger workstation is the practical target for this workflow.
 Also ensure that `cores` is not lower than `star.threads` in the run-specific `config.yaml`.
 The production template currently uses `star.threads: 8`.
 
-Launch from the repository root:
+Launch from the repository's physical/canonical root. On systems where the repository is
+reached through a symlink, resolve it first so login-node and compute-node/container paths agree:
 
 ```bash
+REPO="$(realpath /path/to/pRCC-RNA-Seq)"
+cd -P "$REPO"
+
 snakemake \
   --snakefile workflow/Snakefile \
   --configfile /path/to/run/config.yaml \
@@ -126,9 +130,13 @@ Do not invent these names: use the values supplied by your HPC administrators. A
 special high-memory or QoS requirements can add standard Snakemake `set-resources` overrides
 to its copied profile without modifying workflow rules.
 
-Launch from the repository root:
+Launch from the repository's physical/canonical root. On systems where the repository is
+reached through a symlink, resolve it first so login-node and compute-node/container paths agree:
 
 ```bash
+REPO="$(realpath /path/to/pRCC-RNA-Seq)"
+cd -P "$REPO"
+
 snakemake \
   --snakefile workflow/Snakefile \
   --configfile /path/to/run/config.yaml \
@@ -139,6 +147,13 @@ snakemake \
 The Snakemake controller should remain running for the duration of the workflow. Use `tmux`, a
 site-supported persistent login/session mechanism, or submit the controller itself as an HPC
 job if required by local policy.
+
+For Apptainer, bind shared storage using canonical compute-node-visible paths and preserve the same
+absolute path inside the container (for example `--bind /shared:/shared`). Avoid relying on
+login-node-only symlink aliases such as a shared filesystem mounted through `$HOME`, and avoid a
+profile-level `--pwd` that points to one particular pipeline checkout. Workflow-owned scripts are
+resolved by the pipeline itself; the profile should describe infrastructure, not repository
+location.
 
 ## 5. Validate a copied profile before production
 

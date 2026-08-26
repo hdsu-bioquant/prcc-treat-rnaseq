@@ -40,6 +40,8 @@ rule gene_lengths:
         gtf = GTF
     output:
         tsv = GENE_LENGTHS
+    params:
+        script = join(SCRIPT_DIR, "gene_lengths.py")
     container: IMG["py"]
     shell:
-        "python workflow/scripts/gene_lengths.py {input.gtf} {output.tsv}"
+        "python {params.script:q} {input.gtf:q} {output.tsv:q}"

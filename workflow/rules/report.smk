@@ -161,9 +161,10 @@ rule result_manifests:
         checksums = join(RESULTS, "run/checksums.sha256"),
         validation = join(RESULTS, "run/validation_checksums.sha256")
     params:
-        results = RESULTS
+        results = RESULTS,
+        script = join(SCRIPT_DIR, "build_manifest.py")
     container: IMG["py"]
     resources:
         mem_mb = 4000, runtime = 60
     shell:
-        "python workflow/scripts/build_manifest.py {params.results} {output.manifest} {output.checksums} {output.validation}"
+        "python {params.script:q} {params.results:q} {output.manifest:q} {output.checksums:q} {output.validation:q}"

@@ -152,7 +152,9 @@ Then edit:
 
 for the site: scheduler job limits, partition/account if required, latency, and any Apptainer bind
 roots needed to expose the repository, test FASTQs, references, scratch and run output on compute
-nodes.
+nodes. Prefer binding the canonical shared-filesystem root to the **same absolute path** inside the
+container. Do not encode the location of one particular pipeline checkout with an Apptainer
+`--pwd`; the profile should remain reusable across pipeline checkouts and runs.
 
 ### Local workstation example
 
@@ -180,9 +182,12 @@ PROFILE="$HOME/.config/snakemake/prcc-rnaseq-slurm"
 Choose a run-owned directory outside the maintained repository. For example:
 
 ```bash
-REPO=/absolute/path/to/pRCC-RNA-Seq
+# Resolve the repository through its physical/canonical filesystem path.
+# This matters on HPC systems where a convenient login-node symlink may not
+# exist under the same absolute name inside Apptainer on compute nodes.
+REPO="$(realpath /absolute/path/to/pRCC-RNA-Seq)"
 RUN_DIR=/absolute/path/to/pRCC-TREAT_realistic_qualification
-GDC_DIR=/absolute/path/to/gdc
+GDC_DIR="$(realpath /absolute/path/to/gdc)"
 
 mkdir -p "$RUN_DIR"
 cp "$REPO/tests/real/config.yaml"  "$RUN_DIR/config.yaml"
@@ -220,8 +225,10 @@ $REPO/tests/real/data/SRR493372_2.fastq.gz
 $REPO/tests/real/data/SRR16932032.fastq.gz
 ```
 
-Use absolute paths. Do not change library IDs, accessions, assay/layout/strandedness, UMI fields or
-row order.
+Use canonical absolute paths (for example, the output of `realpath`), not login-node-only
+symlink aliases. The same absolute path must be visible on the execution node and inside
+Apptainer. Do not change library IDs, accessions, assay/layout/strandedness, UMI fields or row
+order.
 
 This manual copy/edit step is intentional. It rehearses the same run-owned configuration workflow
 used later for restricted consortium datasets.
@@ -230,11 +237,16 @@ used later for restricted consortium datasets.
 
 ## 4. Preflight the copied run
 
-Run these commands from the repository root:
+Run these commands from the repository's **physical** root:
 
 ```bash
-cd "$REPO"
+cd -P "$REPO"
+printf 'logical PWD: %s\nphysical PWD: ' "$PWD"
+pwd -P
 ```
+
+The displayed paths should be the same canonical shared-filesystem path. If they differ, use the
+physical path reported by `pwd -P` for the repository, references, FASTQs and run configuration.
 
 First re-check the exact public inputs without network access:
 

@@ -7,6 +7,17 @@ import sys
 import yaml
 from os.path import join
 
+# Resolve workflow-owned paths through the physical filesystem location.  A user
+# may launch Snakemake from a logical/symlinked path that is valid on the login
+# node but not reproduced inside Apptainer on compute nodes.  Repository-owned
+# files must therefore never depend on the shell's logical $PWD.
+WORKFLOW_DIR = os.path.realpath(workflow.basedir)
+REPO_DIR = os.path.realpath(os.path.join(WORKFLOW_DIR, ".."))
+SCRIPT_DIR = os.path.join(WORKFLOW_DIR, "scripts")
+CONFIG_DIR = os.path.join(WORKFLOW_DIR, "config")
+RESOURCE_DIR = os.path.join(REPO_DIR, "resources")
+CONTAINER_DIR = os.path.join(REPO_DIR, "containers", "sif")
+
 # ---- run output contract ---------------------------------------------------#
 # ``output`` is the run root. ``results`` is the portable canonical data product,
 # ``restricted`` contains site-retained sequence/infrastructure-sensitive products,
@@ -69,9 +80,8 @@ GTF       = join(REFDIR, REFERENCE_CONFIG["gtf"])
 STAR_IDX  = join(REFDIR, REFERENCE_CONFIG["star_index"])
 STAR_IDX_DONE = join(STAR_IDX, "SAindex")
 
-_RESOURCE_DIR = os.path.abspath(os.path.join(workflow.basedir, "..", "resources"))
-_GDC_RESOURCE_TABLE = os.path.join(_RESOURCE_DIR, "gdc_resources.tsv")
-_GDC_CANONICAL_MANIFEST = os.path.join(_RESOURCE_DIR, "gdc_installed_reference.sha256")
+_GDC_RESOURCE_TABLE = os.path.join(RESOURCE_DIR, "gdc_resources.tsv")
+_GDC_CANONICAL_MANIFEST = os.path.join(RESOURCE_DIR, "gdc_installed_reference.sha256")
 _GDC_QUALIFICATION_STAMP = ".prcc_treat_reference_qualification.tsv"
 
 # Gene lengths are pipeline-derived metadata, not part of the official GDC
@@ -268,9 +278,10 @@ _validate_consortium_reference_identity()
 # ---- sequencing-library sample sheet --------------------------------------#
 # One row = one sequencing library. library_id drives processing/output naming;
 # sample_id identifies the underlying biological sample and may repeat.
-_SCRIPT_DIR = os.path.abspath(os.path.join(workflow.basedir, "scripts"))
-if _SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, _SCRIPT_DIR)
+# Import workflow-owned helpers from the same canonical script directory used by
+# containerized rule shell commands below.
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
 from sample_sheet import load_and_validate_samples
 from umi import compile_umitools_extract, parse_umi_spec
 
@@ -426,7 +437,7 @@ def gene_expression_inputs(wc):
 # and the software versions reported in provenance / MultiQC. Production runs
 # do not add one version-probe job per container; release tests can verify that
 # these declarations match the image contents.
-SOFTWARE_MANIFEST = os.path.abspath(os.path.join(workflow.basedir, "config", "software_versions.yaml"))
+SOFTWARE_MANIFEST = os.path.join(CONFIG_DIR, "software_versions.yaml")
 with open(SOFTWARE_MANIFEST) as _fh:
     _software_manifest = yaml.safe_load(_fh)
 if not isinstance(_software_manifest, dict) or not isinstance(_software_manifest.get("tools"), dict):
@@ -439,7 +450,6 @@ for _tool_name, _tool_spec in TOOL_REGISTRY.items():
             f"Software manifest entry {_tool_name!r} is missing: {', '.join(sorted(_missing))}"
         )
 
-CONTAINER_DIR = os.path.abspath(os.path.join(workflow.basedir, "..", "containers", "sif"))
 def _img(name, uri):
     local = os.path.join(CONTAINER_DIR, name + ".sif")
     return local if os.path.exists(local) else uri

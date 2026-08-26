@@ -35,16 +35,17 @@ rule qc_metrics:
         sample_id = lambda wc: biological_sample_id(wc.library),
         assay = lambda wc: samples.loc[wc.library, "assay"],
         layout = lambda wc: samples.loc[wc.library, "layout"],
-        has_umi = lambda wc: samples.loc[wc.library, "has_umi"]
+        has_umi = lambda wc: samples.loc[wc.library, "has_umi"],
+        script = join(SCRIPT_DIR, "build_qc_metrics.py")
     container: IMG["py"]
     resources:
         mem_mb = 4000, runtime = 30
     shell:
         r"""
         mkdir -p "$(dirname {output.tsv})"
-        python workflow/scripts/build_qc_metrics.py \
-          {input.star} {input.expr} {wildcards.library} {params.sample_id} \
-          {params.assay} {params.layout} {params.has_umi} {output.tsv}
+        python {params.script:q} \
+          {input.star:q} {input.expr:q} {wildcards.library:q} {params.sample_id:q} \
+          {params.assay:q} {params.layout:q} {params.has_umi:q} {output.tsv:q}
         """
 
 
@@ -54,12 +55,14 @@ rule merge_qc_metrics:
     output:
         tsv = join(RESULTS, "qc/qc_metrics.tsv")
     params:
-        samplesheet = config["samples"], results = RESULTS
+        samplesheet = config["samples"],
+        results = RESULTS,
+        script = join(SCRIPT_DIR, "merge_qc_metrics.py")
     container: IMG["py"]
     resources:
         mem_mb = 4000, runtime = 30
     shell:
-        "python workflow/scripts/merge_qc_metrics.py {params.samplesheet} {params.results} {output.tsv}"
+        "python {params.script:q} {params.samplesheet:q} {params.results:q} {output.tsv:q}"
 
 
 rule qc_multiqc_custom:
@@ -67,13 +70,15 @@ rule qc_multiqc_custom:
         join(RESULTS, "qc/qc_metrics.tsv")
     output:
         tsv = temp(join(INTERMEDIATE, "qc/prcc_qc_metrics_mqc.tsv"))
+    params:
+        script = join(SCRIPT_DIR, "qc_to_multiqc.py")
     container: IMG["py"]
     resources:
         mem_mb = 4000, runtime = 30
     shell:
         r"""
-        mkdir -p "$(dirname {output.tsv})"
-        python workflow/scripts/qc_to_multiqc.py {input} {output.tsv}
+        mkdir -p "$(dirname {output.tsv:q})"
+        python {params.script:q} {input:q} {output.tsv:q}
         """
 
 
@@ -96,7 +101,7 @@ rule multiqc:
         data = directory(join(RESTRICTED, "qc/multiqc_data"))
     params:
         build = join(INTERMEDIATE, "qc/multiqc_build"),
-        config = os.path.abspath(os.path.join(workflow.basedir, "config", "multiqc_portable.yaml"))
+        config = os.path.join(CONFIG_DIR, "multiqc_portable.yaml")
     container: IMG["multiqc"]
     resources:
         mem_mb = 8000, runtime = 60
@@ -132,9 +137,11 @@ rule gtf_to_bed12:
         gtf = GTF
     output:
         bed = GENE_BED12
+    params:
+        script = join(SCRIPT_DIR, "gtf_to_bed12.py")
     container: IMG["py"]
     shell:
-        "python workflow/scripts/gtf_to_bed12.py {input.gtf} {output.bed}"
+        "python {params.script:q} {input.gtf:q} {output.bed:q}"
 
 rule rseqc_read_distribution:
     input:

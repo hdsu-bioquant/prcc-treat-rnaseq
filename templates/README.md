@@ -305,6 +305,12 @@ For pRCC-TREAT partner runs, `results/` is the intended central delivery package
 name is deliberate: outside the consortium it simply represents the portable canonical run
 result.
 
+For UMI-bearing libraries, the stable `qc_metrics.tsv` rows also report the declared UMI
+length/location/discard specification plus a deterministic sampled extraction-conformance
+check (sampled retention, exact raw-to-extracted transformation, and read-name UMI tagging).
+This confirms that the configured UMI specification was applied; it is not a protocol-specific
+claim about UMI randomness or spacer sequence identity.
+
 `checksums.sha256` verifies transfer/package integrity. `validation_checksums.sha256` contains
 the deliberately deterministic subset used for cross-installation harmonization testing.
 The synthetic installation test compares that subset to the frozen reference baseline.

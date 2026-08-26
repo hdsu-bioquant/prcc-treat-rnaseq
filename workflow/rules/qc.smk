@@ -8,6 +8,29 @@ def fastqc_inputs(wc):
     return fqs
 
 
+def umi_extraction_qc_inputs(wc):
+    if not library_has_umi(wc.library):
+        return {}
+    paths = {
+        "raw_r1": samples.loc[wc.library, "fq1"],
+        "extracted_r1": _ilib(wc.library, "preprocess", "R1.umi.fastq.gz"),
+    }
+    if library_layout(wc.library) == "paired":
+        paths["raw_r2"] = samples.loc[wc.library, "fq2"]
+        paths["extracted_r2"] = _ilib(wc.library, "preprocess", "R2.umi.fastq.gz")
+    return paths
+
+
+def qc_metrics_inputs(wc):
+    paths = {
+        "star": _rlib(wc.library, "logs", f"{wc.library}.Log.final.out"),
+        "expr": _plib(wc.library, "gene_expression.tsv"),
+    }
+    if library_has_umi(wc.library):
+        paths["umi_qc"] = _ilib(wc.library, "qc", "umi_extraction_qc.tsv")
+    return paths
+
+
 rule fastqc:
     input:
         fastqc_inputs
@@ -25,10 +48,43 @@ rule fastqc:
         """
 
 
+rule umi_extraction_qc:
+    input:
+        unpack(umi_extraction_qc_inputs)
+    output:
+        tsv = temp(join(INTERMEDIATE, "libraries/{library}/qc/umi_extraction_qc.tsv"))
+    params:
+        raw_r1 = lambda wc: samples.loc[wc.library, "fq1"],
+        raw_r2 = lambda wc: samples.loc[wc.library, "fq2"],
+        extracted_r1 = lambda wc: _ilib(wc.library, "preprocess", "R1.umi.fastq.gz"),
+        extracted_r2 = lambda wc: (
+            _ilib(wc.library, "preprocess", "R2.umi.fastq.gz")
+            if library_layout(wc.library) == "paired" else "-"
+        ),
+        umi_pattern = lambda wc: library_umi_spec(wc.library).pattern,
+        umi_location = lambda wc: library_umi_spec(wc.library).location,
+        umi_discard_bases = lambda wc: library_umi_spec(wc.library).discard_bases,
+        script = join(SCRIPT_DIR, "build_umi_extraction_qc.py")
+    wildcard_constraints:
+        library = UMI_LIBRARY_PATTERN
+    container: IMG["py"]
+    resources:
+        mem_mb = 4000, runtime = 30
+    shell:
+        r"""
+        mkdir -p "$(dirname {output.tsv:q})"
+        python {params.script:q} \
+          --raw-r1 {params.raw_r1:q} --raw-r2 {params.raw_r2:q} \
+          --extracted-r1 {params.extracted_r1:q} --extracted-r2 {params.extracted_r2:q} \
+          --umi-pattern {params.umi_pattern:q} --umi-location {params.umi_location:q} \
+          --umi-discard-bases {params.umi_discard_bases} --max-records 10000 \
+          --output {output.tsv:q}
+        """
+
+
 rule qc_metrics:
     input:
-        star = join(RESTRICTED, "libraries/{library}/logs/{library}.Log.final.out"),
-        expr = join(RESULTS, "libraries/{library}/gene_expression.tsv")
+        unpack(qc_metrics_inputs)
     output:
         tsv = join(RESULTS, "libraries/{library}/qc_metrics.tsv")
     params:
@@ -36,6 +92,10 @@ rule qc_metrics:
         assay = lambda wc: samples.loc[wc.library, "assay"],
         layout = lambda wc: samples.loc[wc.library, "layout"],
         has_umi = lambda wc: samples.loc[wc.library, "has_umi"],
+        umi_qc = lambda wc: (
+            _ilib(wc.library, "qc", "umi_extraction_qc.tsv")
+            if library_has_umi(wc.library) else "NA"
+        ),
         script = join(SCRIPT_DIR, "build_qc_metrics.py")
     container: IMG["py"]
     resources:
@@ -45,7 +105,7 @@ rule qc_metrics:
         mkdir -p "$(dirname {output.tsv})"
         python {params.script:q} \
           {input.star:q} {input.expr:q} {wildcards.library:q} {params.sample_id:q} \
-          {params.assay:q} {params.layout:q} {params.has_umi:q} {output.tsv:q}
+          {params.assay:q} {params.layout:q} {params.has_umi:q} {params.umi_qc:q} {output.tsv:q}
         """
 
 

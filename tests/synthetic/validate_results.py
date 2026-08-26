@@ -393,6 +393,18 @@ if not run_qc_path.is_file():
 run_qc = pd.read_csv(run_qc_path, sep="\t", na_values=["NA"], keep_default_na=True).set_index("library_id")
 if list(run_qc.index) != LIBRARIES:
     fail(f"run QC libraries are {list(run_qc.index)}, expected {LIBRARIES}")
+required_qc_columns = {
+    "umi_length",
+    "umi_location",
+    "umi_discard_bases",
+    "umi_extract_qc_records",
+    "umi_extract_qc_retained_percent",
+    "umi_extract_transform_match_percent",
+    "umi_extract_tag_match_percent",
+}
+missing_qc_columns = sorted(required_qc_columns - set(run_qc.columns))
+if missing_qc_columns:
+    fail("run QC table is missing UMI extraction QC column(s): " + ", ".join(missing_qc_columns))
 for library in LIBRARIES:
     per_lib = RESULTS / "libraries" / library / "qc_metrics.tsv"
     if not per_lib.is_file():
@@ -410,8 +422,29 @@ for library in LIBRARIES:
     if library in UMI_LIBRARIES:
         if int(row["umi_molecules_assigned"]) != int(summary.loc[library, "expected_umi_molecules"]):
             fail(f"{library} umi_molecules_assigned differs from expected")
-    elif not pd.isna(row["umi_molecules_assigned"]):
-        fail(f"{library} non-UMI QC should have NA umi_molecules_assigned")
+        spec = UMI_FIXTURE_SPECS[library]
+        if int(row["umi_length"]) != len(spec["pattern"]):
+            fail(f"{library} QC umi_length differs from fixture specification")
+        if str(row["umi_location"]) != spec["location"]:
+            fail(f"{library} QC umi_location differs from fixture specification")
+        if int(row["umi_discard_bases"]) != spec["discard_bases"]:
+            fail(f"{library} QC umi_discard_bases differs from fixture specification")
+        expected_checked = 16 if library == "FL_UMI" else 17
+        if int(row["umi_extract_qc_records"]) != expected_checked:
+            fail(f"{library} UMI extraction QC checked-record count differs from fixture")
+        for col in (
+            "umi_extract_qc_retained_percent",
+            "umi_extract_transform_match_percent",
+            "umi_extract_tag_match_percent",
+        ):
+            if float(row[col]) != 100.0:
+                fail(f"{library} {col} should be 100% in the deterministic fixture")
+    else:
+        if not pd.isna(row["umi_molecules_assigned"]):
+            fail(f"{library} non-UMI QC should have NA umi_molecules_assigned")
+        for col in required_qc_columns:
+            if not pd.isna(row[col]):
+                fail(f"{library} non-UMI QC should have NA {col}")
 pass_("canonical per-library and run-level QC metrics")
 
 # Software provenance is manifest-driven (one production rule, no per-tool probes)
@@ -461,7 +494,10 @@ if "prcc_rnaseq_qc" not in html_text or "prcc_rnaseq_qc_table" not in html_text:
     fail("library-level pRCC-RNA-Seq QC summary is missing from MultiQC report")
 rendered_text = unescape(re.sub(r"<[^>]+>", " ", html_text))
 rendered_text = " ".join(rendered_text.split())
-for label in ("Library ID", "Sample ID", "STAR input", "Unique mapped %", "UMI molecules"):
+for label in (
+    "Library ID", "Sample ID", "STAR input", "Unique mapped %",
+    "UMI design", "UMI transform %", "UMI molecules",
+):
     if label not in rendered_text:
         fail(f"human-facing Library QC Summary label is missing from MultiQC report: {label}")
 

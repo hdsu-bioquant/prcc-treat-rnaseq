@@ -410,6 +410,18 @@ qc = pd.read_csv(
 ).set_index("library_id")
 if list(qc.index) != LIBRARIES:
     fail(f"run QC libraries are {list(qc.index)}, expected {LIBRARIES}")
+required_umi_qc_columns = {
+    "umi_length",
+    "umi_location",
+    "umi_discard_bases",
+    "umi_extract_qc_records",
+    "umi_extract_qc_retained_percent",
+    "umi_extract_transform_match_percent",
+    "umi_extract_tag_match_percent",
+}
+missing_umi_qc_columns = sorted(required_umi_qc_columns - set(qc.columns))
+if missing_umi_qc_columns:
+    fail("run QC table is missing UMI extraction QC column(s): " + ", ".join(missing_umi_qc_columns))
 expected_meta = {
     "REAL_FL": ("REAL_FL", "full_length", "paired", "false"),
     "REAL_QS_UMI": ("REAL_QS_UMI", "quantseq", "single", "true"),
@@ -429,9 +441,24 @@ for library in LIBRARIES:
         fail(f"missing {per_lib}")
 if int(qc.loc["REAL_QS_UMI", "umi_molecules_assigned"]) <= 0:
     fail("REAL_QS_UMI has no assigned UMI molecules")
+qs_qc = qc.loc["REAL_QS_UMI"]
+if int(qs_qc["umi_length"]) != 6 or str(qs_qc["umi_location"]) != "read1_start" or int(qs_qc["umi_discard_bases"]) != 4:
+    fail("REAL_QS_UMI stable QC does not record the qualified 6+4 read1_start UMI design")
+if int(qs_qc["umi_extract_qc_records"]) != 10_000:
+    fail("REAL_QS_UMI UMI extraction QC did not check the expected deterministic 10,000-record sample")
+for col in (
+    "umi_extract_qc_retained_percent",
+    "umi_extract_transform_match_percent",
+    "umi_extract_tag_match_percent",
+):
+    if float(qs_qc[col]) != 100.0:
+        fail(f"REAL_QS_UMI {col} should be 100% for the pinned qualification FASTQ sample")
 if not pd.isna(qc.loc["REAL_FL", "umi_molecules_assigned"]):
     fail("REAL_FL non-UMI QC should have NA umi_molecules_assigned")
-pass_("realistic per-library and run-level QC metrics")
+for col in required_umi_qc_columns:
+    if not pd.isna(qc.loc["REAL_FL", col]):
+        fail(f"REAL_FL non-UMI QC should have NA {col}")
+pass_("realistic per-library and run-level QC metrics + UMI extraction conformance")
 
 # Restricted site-retained products.
 for library in LIBRARIES:
@@ -508,7 +535,10 @@ if not (RESTRICTED / "qc" / "multiqc_data").is_dir():
     fail("restricted MultiQC data directory is missing")
 html = multiqc.read_text(errors="replace")
 rendered = " ".join(unescape(re.sub(r"<[^>]+>", " ", html)).split())
-for label in ("Library ID", "Sample ID", "STAR input", "Unique mapped %", "UMI molecules"):
+for label in (
+    "Library ID", "Sample ID", "STAR input", "Unique mapped %",
+    "UMI design", "UMI transform %", "UMI molecules",
+):
     if label not in rendered:
         fail(f"MultiQC Library QC Summary label missing: {label}")
 for library in LIBRARIES:

@@ -153,9 +153,10 @@ into processed read names for downstream UMI-aware deduplication.
 
 It then checks the exact raw counts and UMI molecule counts, the canonical
 `gene_expression.tsv` schema (including FL normalization vs QS `NA` values), selected stable
-QC metrics, the library-level MultiQC summary, complete manifest-driven software-version
-provenance, restricted BAM/FastQC presence, run metadata, both generated checksum files, and
-the frozen cross-installation validation baseline.
+QC metrics, the production UMI-extraction conformance QC for both synthetic UMI architectures,
+the library-level MultiQC summary, complete manifest-driven software-version provenance,
+restricted BAM/FastQC presence, run metadata, both generated checksum files, and the frozen
+cross-installation validation baseline.
 The default mixed-level MultiQC General Statistics table is intentionally suppressed; FastQC
 R1/R2 diagnostics remain in their dedicated report sections.
 

@@ -561,9 +561,19 @@ The portable `results/qc/` contains:
 Each library also gets the same one-row schema in
 `results/libraries/<library_id>/qc_metrics.tsv`. Current guaranteed metrics include STAR
 input records, unique/multimapping statistics, major unmapped fractions, unstranded
-gene-assigned counts/fraction, and assigned UMI molecules where applicable. PASS/WARN/FAIL
-thresholds are intentionally **not** enforced yet; consortium acceptance thresholds should
-be agreed explicitly before being encoded.
+gene-assigned counts/fraction, and assigned UMI molecules where applicable.
+
+For UMI-bearing libraries the stable QC row additionally records the declared UMI length,
+UMI-bearing read, adjacent discard length, and a deterministic extraction-conformance check
+on up to the first 10,000 raw records. The check reports sampled retention and verifies that
+every retained sampled record has exactly the expected 5-prime sequence/quality transformation
+and the expected UMI-tools read-name tag. Transform/tag mismatches are pipeline-integrity
+errors; sampled retention is descriptive and is not thresholded. This proves that the pipeline
+applied the reported UMI specification, but it deliberately does **not** infer from sequence
+composition whether the declared prefix is biologically a valid/random UMI.
+
+General biological QC PASS/WARN/FAIL thresholds are intentionally **not** enforced yet;
+consortium acceptance thresholds should be agreed explicitly before being encoded.
 
 The report's native **Software Versions** section is supplied from the same pipeline-owned
 software manifest used to select containers, rather than relying on incomplete automatic

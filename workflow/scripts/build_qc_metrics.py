@@ -5,15 +5,34 @@ This deliberately exposes a small, version-controlled QC schema instead of makin
 MultiQC's internal export formats the consortium data contract. MultiQC remains the
 human-facing report and consumes the run-level version of this table as custom content.
 
+For UMI-bearing libraries, a deterministic sampled raw->extracted FASTQ conformance
+check is incorporated.  This verifies that the declared UMI length/location/discard
+specification was actually applied and that UMI-tools propagated the extracted tag to
+retained read names.  It does not attempt to infer whether the declared raw prefix is
+biologically a valid/random UMI.
+
 Usage:
   build_qc_metrics.py <star.Log.final.out> <gene_expression.tsv> <library_id> \
-      <sample_id> <assay> <layout> <has_umi> <out.tsv>
+      <sample_id> <assay> <layout> <has_umi> <umi_extraction_qc.tsv|NA> <out.tsv>
 """
 
 import sys
 import pandas as pd
 
-log_f, expr_f, library_id, sample_id, assay, layout, has_umi, out = sys.argv[1:9]
+if len(sys.argv) != 10:
+    raise SystemExit(__doc__)
+
+(
+    log_f,
+    expr_f,
+    library_id,
+    sample_id,
+    assay,
+    layout,
+    has_umi,
+    umi_qc_f,
+    out,
+) = sys.argv[1:10]
 
 
 def parse_star_log(path):
@@ -39,6 +58,30 @@ def as_percent(value):
     return float(value.rstrip("%"))
 
 
+def load_umi_qc(path):
+    table = pd.read_csv(path, sep="\t", na_values=["NA"], keep_default_na=True)
+    required = [
+        "umi_length",
+        "umi_location",
+        "umi_discard_bases",
+        "umi_extract_qc_records",
+        "umi_extract_qc_retained_percent",
+        "umi_extract_transform_match_percent",
+        "umi_extract_tag_match_percent",
+    ]
+    missing = [c for c in required if c not in table.columns]
+    if missing:
+        raise SystemExit("UMI extraction QC is missing column(s): " + ", ".join(missing))
+    if len(table) != 1:
+        raise SystemExit(f"Expected exactly one UMI extraction QC row in {path}")
+    row = table.iloc[0]
+    if pd.isna(row["umi_extract_transform_match_percent"]) or float(row["umi_extract_transform_match_percent"]) != 100.0:
+        raise SystemExit("UMI extraction transformation QC did not pass at 100% for retained sampled records")
+    if pd.isna(row["umi_extract_tag_match_percent"]) or float(row["umi_extract_tag_match_percent"]) != 100.0:
+        raise SystemExit("UMI read-name tag QC did not pass at 100% for retained sampled records")
+    return row
+
+
 star = parse_star_log(log_f)
 expr = pd.read_csv(expr_f, sep="\t", na_values=["NA"], keep_default_na=True)
 
@@ -51,8 +94,27 @@ if has_umi.lower() == "true":
     if umi_col.isna().any():
         raise SystemExit("UMI-bearing library has NA values in umi_molecule_count")
     umi_molecules = int(umi_col.sum())
+    if umi_qc_f == "NA":
+        raise SystemExit("UMI-bearing library is missing UMI extraction QC input")
+    umi_qc = load_umi_qc(umi_qc_f)
+    umi_length = int(umi_qc["umi_length"])
+    umi_location = str(umi_qc["umi_location"])
+    umi_discard_bases = int(umi_qc["umi_discard_bases"])
+    umi_extract_qc_records = int(umi_qc["umi_extract_qc_records"])
+    umi_extract_qc_retained_percent = float(umi_qc["umi_extract_qc_retained_percent"])
+    umi_extract_transform_match_percent = float(umi_qc["umi_extract_transform_match_percent"])
+    umi_extract_tag_match_percent = float(umi_qc["umi_extract_tag_match_percent"])
 else:
+    if umi_qc_f != "NA":
+        raise SystemExit("Non-UMI library unexpectedly received UMI extraction QC input")
     umi_molecules = pd.NA
+    umi_length = pd.NA
+    umi_location = pd.NA
+    umi_discard_bases = pd.NA
+    umi_extract_qc_records = pd.NA
+    umi_extract_qc_retained_percent = pd.NA
+    umi_extract_transform_match_percent = pd.NA
+    umi_extract_tag_match_percent = pd.NA
 
 row = {
     "library_id": library_id,
@@ -74,6 +136,13 @@ row = {
     "gene_assigned_unstranded": assigned,
     "gene_assigned_percent": assigned_pct,
     "umi_molecules_assigned": umi_molecules,
+    "umi_length": umi_length,
+    "umi_location": umi_location,
+    "umi_discard_bases": umi_discard_bases,
+    "umi_extract_qc_records": umi_extract_qc_records,
+    "umi_extract_qc_retained_percent": umi_extract_qc_retained_percent,
+    "umi_extract_transform_match_percent": umi_extract_transform_match_percent,
+    "umi_extract_tag_match_percent": umi_extract_tag_match_percent,
 }
 
 pd.DataFrame([row]).to_csv(out, sep="\t", index=False, na_rep="NA", float_format="%.6g")

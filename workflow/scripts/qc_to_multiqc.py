@@ -28,6 +28,13 @@ required = [
     "gene_assigned_unstranded",
     "gene_assigned_percent",
     "umi_molecules_assigned",
+    "umi_length",
+    "umi_location",
+    "umi_discard_bases",
+    "umi_extract_qc_records",
+    "umi_extract_qc_retained_percent",
+    "umi_extract_transform_match_percent",
+    "umi_extract_tag_match_percent",
 ]
 missing = [c for c in required if c not in df.columns]
 if missing:
@@ -56,6 +63,13 @@ def text_value(value):
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value)
+
+
+def umi_design(row):
+    if str(row["has_umi"]).lower() != "true" or pd.isna(row["umi_length"]):
+        return ""
+    read = "R1" if str(row["umi_location"]) == "read1_start" else "R2"
+    return f"{read} {int(row['umi_length'])}+{int(row['umi_discard_bases'])}"
 
 
 # MultiQC custom-content TSV files accept YAML configuration in leading comment
@@ -116,6 +130,32 @@ meta = """# id: prcc_rnaseq_qc
 #     format: '{:.1f}'
 #     min: 0
 #     max: 100
+#   umi_design:
+#     title: UMI design
+#     description: Declared UMI-bearing read and 5-prime removal as UMI length + adjacent discard bases (for example R1 6+4).
+#   umi_extract_qc_retained_percent:
+#     title: UMI retained %
+#     description: Percent of the deterministic raw FASTQ QC sample retained by UMI extraction. This is descriptive and is not thresholded.
+#     suffix: '%'
+#     format: '{:.1f}'
+#     min: 0
+#     max: 100
+#     hidden: true
+#   umi_extract_transform_match_percent:
+#     title: UMI transform %
+#     description: Percent of retained sampled records whose sequence/quality transformation exactly matches the declared UMI length/location/discard specification.
+#     suffix: '%'
+#     format: '{:.1f}'
+#     min: 0
+#     max: 100
+#   umi_extract_tag_match_percent:
+#     title: UMI tag %
+#     description: Percent of retained sampled records whose UMI-tools read-name tag exactly matches the UMI extracted from the raw prefix.
+#     suffix: '%'
+#     format: '{:.1f}'
+#     min: 0
+#     max: 100
+#     hidden: true
 #   umi_molecules_assigned:
 #     title: UMI molecules
 #     description: Assigned gene-level molecules after UMI deduplication; blank for non-UMI libraries.
@@ -133,6 +173,10 @@ columns = [
     "multi_mapped_percent",
     "gene_assigned_unstranded",
     "gene_assigned_percent",
+    "umi_design",
+    "umi_extract_qc_retained_percent",
+    "umi_extract_transform_match_percent",
+    "umi_extract_tag_match_percent",
     "umi_molecules_assigned",
 ]
 
@@ -153,6 +197,10 @@ with open(out, "w", newline="") as fh:
                 text_value(row["multi_mapped_percent"]),
                 text_value(row["gene_assigned_unstranded"]),
                 text_value(row["gene_assigned_percent"]),
+                umi_design(row),
+                text_value(row["umi_extract_qc_retained_percent"]),
+                text_value(row["umi_extract_transform_match_percent"]),
+                text_value(row["umi_extract_tag_match_percent"]),
                 text_value(row["umi_molecules_assigned"]),
             ]
         )

@@ -325,7 +325,9 @@ This skips **only** comparison with the not-yet-frozen realistic validation hash
 - that the run-owned config/sample sheet conform to the qualification procedure;
 - `consortium_run: true` and the exact GDC reference identity;
 - exact byte size + MD5 + gzip integrity of the FASTQs referenced by the copied sample sheet;
-- the observed 101-nt QuantSeq reads and 6-nt UMI + 4-nt `TATA` architecture;
+- the observed 101-nt QuantSeq reads and strong post-UMI T/A/T/A spacer signature;
+- stable generic UMI-extraction QC showing the declared `read1_start`, 6-nt UMI + 4 discard
+  specification was applied exactly to the deterministic 10,000-record QC sample;
 - realistic non-empty raw gene counts and UMI molecule counts;
 - canonical per-library expression semantics;
 - stable QC tables and restricted BAM/FastQC products;

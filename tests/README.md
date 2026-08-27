@@ -39,3 +39,11 @@ Then follow `tests/real/README.md` step by step.
 The synthetic test answers "does the workflow implementation behave correctly?"; the realistic
 test additionally answers "does this site run the consortium production interface against the
 qualified GDC bundle and reproduce the harmonized realistic outputs?"
+
+## Maintainer baseline updates
+
+Ordinary qualification always compares against the maintained expected checksums. If an intentional
+change requires a deterministic baseline update, use the review/apply helper in
+`tests/maintainers/update_validation_baseline.sh` and follow
+`docs/maintainers/qualification-baselines.md`. The helper does not update synthetic input-fixture or
+GDC reference integrity manifests.

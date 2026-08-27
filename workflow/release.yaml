@@ -1,0 +1,7 @@
+# Maintainer-owned pipeline release metadata.
+#
+# Run configurations must not override these values. Update pipeline_release only
+# as part of the documented release process and qualification decision.
+pipeline_name: pRCC-RNA-Seq
+pipeline_release: development
+output_contract: 1

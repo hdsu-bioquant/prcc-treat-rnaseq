@@ -6,9 +6,9 @@ maintained tests/real/config.yaml + samples.tsv and configure/reuse a site execu
 This validator checks that the resulting run still matches the pinned qualification definition
 and that the generated portable/restricted outputs are coherent.
 
-During initial maintainer qualification, use --skip-frozen-baseline until two clean runs have
-reproduced the same results/run/validation_checksums.sha256 and the baseline is deliberately
-frozen under tests/real/expected/.
+The realistic baseline is maintainer-frozen. Normal partner/release qualification compares against
+it. Maintainers may use --skip-frozen-baseline only during a deliberate, reviewed baseline-change
+exercise following docs/maintainers/qualification-baselines.md.
 """
 
 from __future__ import annotations
@@ -47,7 +47,10 @@ def parse_args():
     parser.add_argument(
         "--skip-frozen-baseline",
         action="store_true",
-        help="Skip only comparison with tests/real/expected/validation_checksums.sha256",
+        help=(
+            "Maintainer-only: skip comparison with tests/real/expected/validation_checksums.sha256 "
+            "during a deliberate reviewed baseline-change exercise"
+        ),
     )
     return parser.parse_args()
 
@@ -158,6 +161,8 @@ expected_output = RUN_DIR / "output"
 if configured_output.resolve() != expected_output:
     fail(f"qualification config output must be the run-owned directory: {expected_output}")
 
+if "pipeline_release" in RUN_CONFIG:
+    fail("pipeline_release is maintainer-owned in workflow/release.yaml and must not be in run config")
 if RUN_CONFIG.get("consortium_run") is not True:
     fail("realistic qualification requires consortium_run: true")
 ref = RUN_CONFIG.get("reference", {})
@@ -340,7 +345,7 @@ for directory in (RESULTS, RESTRICTED, INTERMEDIATE):
         fail(f"missing output directory: {directory}")
 pass_("results/restricted/intermediate output structure")
 
-# Matrices: exact values will be frozen after qualification; before that, enforce
+# Matrices: frozen deterministic values are checked later; here also enforce
 # deterministic shape/type/non-empty biological signal.
 raw_path = RESULTS / "matrices" / "raw_gene_counts.tsv"
 raw = pd.read_csv(raw_path, sep="\t").set_index("gene_id")
@@ -488,6 +493,18 @@ if (qs_row["umi_pattern"], qs_row["umi_location"], qs_row["umi_discard_bases"]) 
 
 with (RESULTS / "run" / "config.yaml").open() as fh:
     portable_config = yaml.safe_load(fh)
+with (ROOT / "workflow" / "release.yaml").open() as fh:
+    release_metadata = yaml.safe_load(fh)
+expected_pipeline = {
+    "name": release_metadata["pipeline_name"],
+    "release": release_metadata["pipeline_release"],
+    "output_contract": int(release_metadata["output_contract"]),
+}
+if portable_config.get("pipeline") != expected_pipeline:
+    fail(
+        "portable config pipeline identity differs from maintainer-owned workflow/release.yaml: "
+        f"{portable_config.get('pipeline')}"
+    )
 ref = portable_config.get("reference", {})
 if ref != {
     "mode": "gdc",
@@ -565,9 +582,9 @@ else:
     frozen = EXPECTED / "validation_checksums.sha256"
     if not frozen.is_file():
         fail(
-            "realistic frozen baseline has not been created yet; during initial qualification use "
-            "--skip-frozen-baseline, reproduce the generated validation manifest in two clean runs, "
-            "then freeze tests/real/expected/validation_checksums.sha256"
+            "maintainer-frozen realistic baseline is missing. Restore the release baseline, or for a "
+            "deliberate maintainer baseline change follow docs/maintainers/qualification-baselines.md "
+            "and use --skip-frozen-baseline only as documented"
         )
     frozen_n = compare_checksum_files(validation_path, frozen)
     if frozen_n != validation_n:

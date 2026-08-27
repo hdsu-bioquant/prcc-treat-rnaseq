@@ -8,8 +8,6 @@
 # maintained file in tests/real/ directly and do not change harmonization values.
 #==============================================================================#
 
-pipeline_release: "development"
-
 # This test deliberately exercises consortium-specific reference enforcement.
 consortium_run: true
 

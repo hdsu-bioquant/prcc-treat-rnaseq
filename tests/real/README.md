@@ -48,19 +48,18 @@ end-to-end behavior.
 
 ---
 
-## Operational model being qualified
+## Operational ownership model
 
 Keep three lifetimes separate:
 
 | ownership/lifetime | examples | expected handling |
 |---|---|---|
-| Maintainer-owned | repository, `templates/`, `tests/real/`, frozen baselines | do not edit in place |
+| Maintainer-owned | repository, `templates/`, `tests/real/`, maintained baselines | versioned and changed through normal repository maintenance |
 | Site/user-owned, persistent | installed GDC bundle, copied Snakemake profile | configure once and reuse |
 | Run-owned | copied `config.yaml`, copied `samples.tsv`, output, run logs | create fresh for each dataset/run |
 
-The realistic qualification is intended to be the first guided exercise in that operating model.
-Later consortium SOPs can use the same steps with `templates/config.yaml` and
-`templates/samples.tsv` for real restricted datasets.
+The realistic qualification exercises this operating model. Consortium SOPs can use the same
+ownership boundaries with `templates/config.yaml` and `templates/samples.tsv` for restricted datasets.
 
 ---
 
@@ -75,15 +74,14 @@ Before starting, the site should have:
 - the exact GDC resource bundle installed and passing the fast structural verification;
 - enough local/HPC resources for human STAR alignment.
 
-From the repository root, a current development installation can be checked with:
+From the repository root, a site installation can be checked structurally with:
 
 ```bash
 bash resources/verify_gdc_references.sh /absolute/path/to/gdc
 ```
 
-During initial maintainer development, the canonical installed-reference SHA256 manifest is
-intentionally not frozen yet. Once it exists in a release, a consortium site must qualify its
-installation once before running:
+The canonical installed-reference SHA256 manifest is frozen in the repository. A consortium site
+must qualify its installation against that manifest once before running:
 
 ```bash
 bash resources/verify_gdc_references.sh --qualify /absolute/path/to/gdc
@@ -311,146 +309,52 @@ $RUN_DIR/output/
 
 ## 6. Validate the completed run
 
-### During initial maintainer qualification
-
-Before the realistic frozen baseline has been created:
+The realistic baseline is already maintainer-frozen. Ordinary partner/release qualification uses:
 
 ```bash
-python tests/real/validate_results.py \
-  --run-dir "$RUN_DIR" \
-  --skip-frozen-baseline
+python tests/real/validate_results.py --run-dir "$RUN_DIR"
 ```
 
-This skips **only** comparison with the not-yet-frozen realistic validation hashes. It still checks:
+The validator checks, among other things:
 
 - that the run-owned config/sample sheet conform to the qualification procedure;
 - `consortium_run: true` and the exact GDC reference identity;
-- exact byte size + MD5 + gzip integrity of the FASTQs referenced by the copied sample sheet;
-- the observed 101-nt QuantSeq reads and strong post-UMI T/A/T/A spacer signature;
-- stable generic UMI-extraction QC showing the declared `read1_start`, 6-nt UMI + 4 discard
-  specification was applied exactly to the deterministic 10,000-record QC sample;
+- exact byte size + MD5 + gzip integrity of the pinned qualification FASTQs;
+- the observed QuantSeq UMI architecture and deterministic UMI-extraction QC;
 - realistic non-empty raw gene counts and UMI molecule counts;
 - canonical per-library expression semantics;
 - stable QC tables and restricted BAM/FastQC products;
 - portable run/reference/software provenance;
 - MultiQC content;
-- package checksums and the generated deterministic validation manifest.
+- package checksums and the generated deterministic validation manifest; and
+- byte-for-byte agreement with `tests/real/expected/validation_checksums.sha256`.
 
-No arbitrary mapping-rate pass/fail threshold is imposed at this stage. The exact qualified outputs
-will be captured by the deterministic baseline after reproducibility is demonstrated.
+A successful run therefore demonstrates the pinned public qualification inputs, production-style
+run ownership, the site's persistent execution profile, qualified GDC reference identity, realistic
+full-length and QuantSeq+UMI processing, the portable/restricted output contract, and deterministic
+agreement with the maintained baseline.
 
-### After the frozen baseline exists
+### Maintainer-only baseline changes
 
-Partner/release qualification uses the same command **without** the development option:
+`--skip-frozen-baseline` is not part of normal partner qualification. Maintainers may use it only
+during a deliberate, reviewed baseline-change exercise after an ordinary run has exposed an
+understood expected difference. Preview or accept the generated realistic manifest with:
 
 ```bash
-python tests/real/validate_results.py --run-dir "$RUN_DIR"
+bash tests/maintainers/update_validation_baseline.sh realistic "$RUN_DIR"
+bash tests/maintainers/update_validation_baseline.sh realistic "$RUN_DIR" --apply
 ```
+
+An unchanged generated manifest needs no repeat run. A metadata/provenance-only difference may be
+accepted after review. If deterministic computational products changed, establish byte-for-byte
+reproducibility with two new clean runs of the finalized implementation before updating the
+baseline. The full procedure is in `docs/maintainers/qualification-baselines.md`.
 
 ---
 
-## 7. Maintainer-only: demonstrate two clean deterministic runs
+## Partner qualification summary
 
-This section is for freezing the first realistic baseline, not for ordinary partner operation.
-If a pinned analysis container or deterministic algorithm parameter changes during development, discard
-pre-change candidate runs and start the formal two-run comparison again with the updated software stack.
-For UMI-tools, the maintained qualification currently requires version 1.1.6 and the fixed workflow-owned
-`--random-seed=1`. UMI-bearing BAMs are also passed through the workflow's deterministic equal-coordinate
-canonicalization step before deduplication; this is required because a fixed seed only guarantees the same
-result when equivalent alignments reach UMI-tools in the same order.
-
-After a successful first run with `--skip-frozen-baseline`, preserve its generated deterministic
-manifest outside `output/`:
-
-```bash
-cp "$RUN_DIR/output/results/run/validation_checksums.sha256" \
-   "$RUN_DIR/validation_checksums.run1.sha256"
-```
-
-Delete the first run's output so the second execution is clean while keeping the same run-owned
-config/sample sheet and the same persistent site profile:
-
-```bash
-rm -rf "$RUN_DIR/output"
-```
-
-Repeat Steps 4-6, again using `--skip-frozen-baseline` for validation.
-
-Then require byte-for-byte equality of the deterministic validation manifests:
-
-```bash
-cmp "$RUN_DIR/validation_checksums.run1.sha256" \
-    "$RUN_DIR/output/results/run/validation_checksums.sha256" \
-  && echo "PASS: realistic deterministic validation manifest reproduced"
-```
-
-If the manifests differ, investigate. Do not immediately replace a baseline.
-
----
-
-## 8. Maintainer-only: freeze the realistic output and GDC reference baselines
-
-Only after the two clean runs above reproduce exactly:
-
-```bash
-cp "$RUN_DIR/output/results/run/validation_checksums.sha256" \
-   "$REPO/tests/real/expected/validation_checksums.sha256"
-```
-
-The exact GDC installation used for those successful realistic runs has now earned reference
-qualification. Generate the **maintainer-owned** installed-reference manifest once:
-
-```bash
-cd "$REPO"
-bash resources/verify_gdc_references.sh \
-  --write-canonical-manifest "$GDC_DIR"
-```
-
-Then qualify the current site installation against the newly frozen canonical manifest:
-
-```bash
-bash resources/verify_gdc_references.sh --qualify "$GDC_DIR"
-```
-
-Commit/freeze `resources/gdc_installed_reference.sha256` only after this sequence. Partners should
-never generate their own canonical baseline; they qualify their installation against the shared
-maintainer file.
-
----
-
-## 9. Final normal qualification after freezing
-
-Remove the previous output and run once more using the same copied run files and persistent profile:
-
-```bash
-rm -rf "$RUN_DIR/output"
-
-cd "$REPO"
-snakemake \
-  --snakefile workflow/Snakefile \
-  --configfile "$RUN_DIR/config.yaml" \
-  --profile "$PROFILE" \
-  --keep-going
-
-python tests/real/validate_results.py --run-dir "$RUN_DIR"
-```
-
-At this point a successful run proves together:
-
-- exact public qualification input bytes;
-- production-style run-owned configuration handling;
-- the site's persistent execution profile;
-- the exact consortium GDC reference identity and qualification stamp;
-- realistic FL and QuantSeq+UMI processing;
-- the portable/restricted output contract; and
-- byte-for-byte agreement of the deterministic canonical result subset.
-
----
-
-## What partners do after the baselines are frozen
-
-A new partner/site follows the same operational exercise, except the maintainer-only freeze steps
-are omitted:
+A new partner/site follows the operational exercise above:
 
 1. install the maintained GDC bundle and run `verify_gdc_references.sh --qualify` once;
 2. copy/configure a local or SLURM execution profile once and retain it;
@@ -479,7 +383,7 @@ tests/real/
 ├── validate_results.py
 └── expected/
     ├── README.md
-    └── validation_checksums.sha256   # added only after maintainer qualification
+    └── validation_checksums.sha256   # maintainer-frozen realistic baseline
 ```
 
 Local/generated and Git-ignored:

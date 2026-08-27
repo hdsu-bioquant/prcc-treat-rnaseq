@@ -9,6 +9,7 @@ import hashlib
 import re
 import sys
 import pandas as pd
+import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 TEST = ROOT / "tests" / "synthetic"
@@ -555,6 +556,23 @@ for name in ("libraries.original.tsv", "config.effective.yaml"):
     if not (RESTRICTED / "run" / name).is_file():
         fail(f"missing restricted/run/{name}")
 pass_("portable and restricted run metadata")
+
+# Portable pipeline identity must come from maintainer-owned release metadata.
+with (RESULTS / "run" / "config.yaml").open() as fh:
+    portable_config = yaml.safe_load(fh)
+with (ROOT / "workflow" / "release.yaml").open() as fh:
+    release_metadata = yaml.safe_load(fh)
+expected_pipeline = {
+    "name": release_metadata["pipeline_name"],
+    "release": release_metadata["pipeline_release"],
+    "output_contract": int(release_metadata["output_contract"]),
+}
+if portable_config.get("pipeline") != expected_pipeline:
+    fail(
+        "portable config pipeline identity differs from maintainer-owned workflow/release.yaml: "
+        f"{portable_config.get('pipeline')}"
+    )
+pass_("maintainer-owned pipeline release metadata")
 
 # Portable sample metadata must not contain raw FASTQ paths.
 libraries = pd.read_csv(RESULTS / "run" / "libraries.tsv", sep="\t")

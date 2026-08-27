@@ -9,14 +9,55 @@ import yaml
 from build_software_versions import build_software_versions
 
 
+_RELEASE_METADATA_PATH = os.path.join(WORKFLOW_DIR, "release.yaml")
+
+
+def _load_release_metadata():
+    if not os.path.isfile(_RELEASE_METADATA_PATH):
+        raise ValueError(f"Maintainer-owned release metadata is missing: {_RELEASE_METADATA_PATH}")
+    with open(_RELEASE_METADATA_PATH) as fh:
+        metadata = yaml.safe_load(fh) or {}
+    required = {"pipeline_name", "pipeline_release", "output_contract"}
+    missing = sorted(required - set(metadata))
+    if missing:
+        raise ValueError(
+            "Maintainer-owned release metadata is missing required field(s): "
+            + ", ".join(missing)
+        )
+    if not isinstance(metadata["pipeline_name"], str) or not metadata["pipeline_name"].strip():
+        raise ValueError("workflow/release.yaml pipeline_name must be a non-empty string")
+    if not isinstance(metadata["pipeline_release"], str) or not metadata["pipeline_release"].strip():
+        raise ValueError("workflow/release.yaml pipeline_release must be a non-empty string")
+    try:
+        output_contract = int(metadata["output_contract"])
+    except (TypeError, ValueError):
+        raise ValueError("workflow/release.yaml output_contract must be an integer")
+    if output_contract < 1:
+        raise ValueError("workflow/release.yaml output_contract must be >= 1")
+    metadata["output_contract"] = output_contract
+    return metadata
+
+
+_RELEASE_METADATA = _load_release_metadata()
+PIPELINE_NAME = _RELEASE_METADATA["pipeline_name"]
+PIPELINE_RELEASE = _RELEASE_METADATA["pipeline_release"]
+OUTPUT_CONTRACT_VERSION = _RELEASE_METADATA["output_contract"]
+
+if "pipeline_release" in config:
+    raise ValueError(
+        "Run config must not define 'pipeline_release'. Pipeline release identity is "
+        "maintainer-owned in workflow/release.yaml."
+    )
+
+
 def _portable_config():
     ref = config.get("reference", {})
     modules = config.get("modules", {})
     portable = {
         "pipeline": {
-            "name": "pRCC-RNA-Seq",
-            "release": config.get("pipeline_release", "unversioned"),
-            "output_contract": 1,
+            "name": PIPELINE_NAME,
+            "release": PIPELINE_RELEASE,
+            "output_contract": OUTPUT_CONTRACT_VERSION,
         },
         "reference": {
             "mode": ref.get("mode", "gdc"),
@@ -58,7 +99,8 @@ rule run_metadata:
         samples = config["samples"],
         fasta = FASTA,
         gtf = GTF,
-        star_index = STAR_IDX_DONE
+        star_index = STAR_IDX_DONE,
+        release_metadata = _RELEASE_METADATA_PATH
     output:
         libraries = join(RESULTS, "run/libraries.tsv"),
         portable_config = join(RESULTS, "run/config.yaml"),
@@ -87,9 +129,9 @@ rule run_metadata:
             yaml.safe_dump(_portable_config(), fh, sort_keys=False, default_flow_style=False)
 
         provenance = {
-            "pipeline": "pRCC-RNA-Seq",
-            "pipeline_release": config.get("pipeline_release", "unversioned"),
-            "output_contract": 1,
+            "pipeline": PIPELINE_NAME,
+            "pipeline_release": PIPELINE_RELEASE,
+            "output_contract": OUTPUT_CONTRACT_VERSION,
             "generated_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "library_count": len(LIBRARIES),
             "biological_sample_count": int(samples["sample_id"].nunique()),

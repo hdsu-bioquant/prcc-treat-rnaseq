@@ -332,11 +332,11 @@ modules:
 # ---------------------------------------------------------------------------
 # Checksums
 # ---------------------------------------------------------------------------
-# The checksum manifest fingerprints only the canonical synthetic test fixture:
-# config, sample sheet, FASTQs, miniature reference, golden expected TSVs, and the
-# maintainer-approved frozen validation baseline. The generator deliberately does
-# NOT create or update that baseline; changing it requires an explicit review.
-# Documentation and test-running code are deliberately excluded.
+# The checksum manifest fingerprints only the canonical synthetic input/golden fixture:
+# config, sample sheet, FASTQs, miniature reference, and independent golden expected TSVs.
+# The deterministic workflow-output baseline in expected/validation_checksums.sha256 is
+# deliberately excluded: it has a separate lifecycle and is maintained explicitly after
+# review. Documentation and test-running code are also excluded.
 CHECKSUM_FILES = [
     TEST / 'config.yaml',
     TEST / 'samples.tsv',
@@ -356,7 +356,6 @@ CHECKSUM_FILES = [
     EXPECTED / 'raw_gene_counts.tsv',
     EXPECTED / 'read_manifest.tsv',
     EXPECTED / 'umi_dedup_gene_counts.tsv',
-    EXPECTED / 'validation_checksums.sha256',
 ]
 
 checksum_path = TEST / 'checksums.sha256'

@@ -148,18 +148,17 @@ other things:
 
 ### Maintainer-owned release identity
 
-`pipeline_release` is part of provenance and is set in the maintained template. Users should
-not invent or modify this value for a harmonized run. It is `development` in the development
-branch and should be replaced by the tagged release identifier when maintainers cut a release.
+Pipeline release identity is not a run configuration field. It is maintained in
+`workflow/release.yaml` and is injected into portable run metadata by the workflow. Users therefore
+cannot accidentally relabel a copied run configuration as another pipeline release.
 
 ### Fields users normally edit
 
 `consortium_run` must be an explicit YAML boolean. Keep `consortium_run: true` for pRCC-TREAT
 consortium runs. Set it to `false` only for deliberate non-consortium/custom-reference use. In
-consortium mode the workflow enforces the maintained GDC reference filenames and
-`reference.sjdb_overhang: 100`; after the canonical installed-reference SHA256 manifest is frozen,
-it also requires a matching site qualification stamp. No ~30 GB reference hash is recomputed at
-normal run startup.
+consortium mode the workflow enforces the maintained GDC reference filenames,
+`reference.sjdb_overhang: 100`, and a site qualification stamp matching the frozen canonical
+installed-reference SHA256 manifest. No ~30 GB reference hash is recomputed at normal run startup.
 
 | Field | Required? | Guidance |
 |---|---|---|
@@ -200,11 +199,11 @@ each site with:
 bash resources/get_gdc_references.sh resources/gdc
 ```
 
-During development, the official archive MD5s plus structural checks are sufficient. After the
-realistic qualification succeeds, maintainers will freeze one canonical
-`resources/gdc_installed_reference.sha256`. From then on, consortium sites qualify an installed or
-copied bundle once with `bash resources/verify_gdc_references.sh --qualify /path/to/gdc`; normal runs
-check the resulting small stamp rather than hashing the full reference installation repeatedly.
+The official archive MD5s verify downloaded archives, while the frozen canonical
+`resources/gdc_installed_reference.sha256` verifies the qualified extracted installation. Consortium
+sites qualify an installed or copied bundle once with
+`bash resources/verify_gdc_references.sh --qualify /path/to/gdc`; normal runs check the resulting
+small stamp rather than hashing the full reference installation repeatedly.
 
 Pinned URLs and official GDC archive MD5s are installation metadata in
 `resources/gdc_resources.tsv`; they are intentionally absent from copied run configs. A quick

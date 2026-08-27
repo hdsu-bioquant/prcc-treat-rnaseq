@@ -52,7 +52,10 @@ unmappable read and one read that becomes too short after trimming.
   canonical run products used for cross-installation qualification.
 
 The fixture FASTQs and reference are tiny enough to commit directly to Git.
-`checksums.sha256` verifies the **input fixture** before every run.
+`checksums.sha256` verifies the **input/golden fixture** before every run. It deliberately does
+**not** include `expected/validation_checksums.sha256`, because that file is the separately
+maintained deterministic workflow-output baseline. Updating an output baseline therefore does not
+require regenerating the synthetic fixture or its integrity manifest.
 
 ## Running the test
 
@@ -88,14 +91,13 @@ The synthetic validator also checks the maintained UMI-tools declaration. The cu
 version is **UMI-tools 1.1.6**, with deduplication using the workflow-owned `--random-seed=1` after
 deterministic canonicalization of equal-coordinate BAM ties.
 After changing a pinned container, refresh the local image with `bash containers/pull_images.sh` before
-running this test. A container-version change does not by itself require re-freezing the deterministic
-baseline: first run the normal smoke test. Re-freeze only if the deliberately deterministic biological/QC
-products actually change, and then only after two clean runs reproduce exactly.
+running this test. First run the normal smoke test against the maintained deterministic baseline. If
+the generated validation manifest is unchanged, no additional reproducibility run is required.
 
-### Development mode before re-freezing the deterministic baseline
+### Maintainer baseline-update mode
 
-When an intentional workflow/fixture change is expected to alter deterministic canonical files,
-run:
+When an intentional change is expected to alter deterministic canonical files, first run the normal
+smoke test and inspect any baseline mismatch. After the difference is understood, run:
 
 ```bash
 bash tests/synthetic/run_test.sh --skip-frozen-baseline
@@ -103,9 +105,22 @@ bash tests/synthetic/run_test.sh --skip-frozen-baseline
 
 This still validates fixture semantics, exact UMI extraction, biological expectations, the output
 contract, package checksums, and the newly generated deterministic validation manifest. It skips
-only comparison with the maintainer-frozen `expected/validation_checksums.sha256`. After two clean
-runs reproduce the same generated validation manifest, review the changes and deliberately replace
-the frozen baseline. Normal qualification runs should omit this option.
+only comparison with `expected/validation_checksums.sha256`.
+
+Preview or accept an intentional candidate baseline with:
+
+```bash
+bash tests/maintainers/update_validation_baseline.sh synthetic
+bash tests/maintainers/update_validation_baseline.sh synthetic --apply
+```
+
+Do not use the helper to update `tests/synthetic/checksums.sha256`; that separate manifest protects
+the version-controlled input/golden fixture and intentionally excludes the deterministic output
+baseline. Metadata/provenance-only baseline differences may be accepted after review. If
+deterministic computational products changed, two fresh clean runs of the finalized implementation
+must produce byte-identical generated validation manifests before `--apply` is used.
+See `docs/maintainers/qualification-baselines.md` for the complete maintainer procedure. Normal
+qualification runs should omit `--skip-frozen-baseline`.
 
 ### Execution-environment independence
 
@@ -185,11 +200,11 @@ the library rows; the rendered Library QC Summary and validator require all four
 and is intended for cross-installation comparison. MultiQC HTML and timestamped provenance
 are excluded from validation hashes.
 
-The reference `expected/validation_checksums.sha256` is now frozen. A successful synthetic
-run therefore demonstrates both numerical/schema correctness and byte-for-byte agreement of
-the 14 deterministic canonical products with the reference installation. The frozen file is
-maintainer-owned and must not be silently regenerated; it should change only when an intentional
-deterministic-output change has been reviewed and reproduced in clean runs.
+The maintained `expected/validation_checksums.sha256` makes a successful synthetic run demonstrate
+both numerical/schema correctness and byte-for-byte agreement of the 14 deterministic canonical
+products with the expected baseline. It must not be silently regenerated: intentional
+metadata/provenance differences may be accepted after review, while a new computational output
+baseline requires the reproducibility procedure described above.
 
 ## Partner-site qualification
 
@@ -253,6 +268,6 @@ python tests/synthetic/generate_synthetic_data.py
 ```
 
 Gzipped FASTQs are deterministic (`mtime=0`). Regeneration also rewrites the synthetic
-config/sample sheet/golden fixture tables and refreshes `checksums.sha256`. It does **not**
-rewrite `expected/validation_checksums.sha256`; that frozen cross-installation baseline is a
-maintainer-approved artifact.
+config/sample sheet/golden fixture tables and refreshes `checksums.sha256`. That fixture manifest
+does **not** include or rewrite `expected/validation_checksums.sha256`; the deterministic
+workflow-output baseline is maintained separately with the maintainer baseline-update procedure.

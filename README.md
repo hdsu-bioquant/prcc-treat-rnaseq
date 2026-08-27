@@ -13,6 +13,7 @@ renal-cell carcinoma (pRCC) harmonization effort (**pRCC-TREAT**)
 - canonical outputs: per-library gene-expression tables + run-level raw-count matrix + standardized QC
 - official run templates: [`templates/config.yaml`](templates/config.yaml) + [`templates/samples.tsv`](templates/samples.tsv); see [`templates/README.md`](templates/README.md)
 - official execution-profile templates: local workstation + SLURM HPC under [`templates/profiles/`](templates/profiles/README.md)
+- maintainer-owned release identity lives in `workflow/release.yaml`; release and qualification policy is documented in `docs/maintainers/release-policy.md`
 
 ```
         FULL-LENGTH poly-A (PE)                    QUANTSEQ 3' tag (SE)
@@ -158,20 +159,18 @@ For installation/transfer audits, retained archives can be rechecked against the
 bash resources/verify_gdc_references.sh --archives resources/gdc
 ```
 
-A second, consortium-specific integrity layer will be frozen only after the realistic production
-qualification succeeds. Maintainers will then generate one canonical
-`resources/gdc_installed_reference.sha256` from that qualified extracted installation. Partners verify
-against that shared manifest rather than generating their own baseline. A full installed-file SHA256
-verification is a one-time site/copy qualification step, **not** a per-run operation.
+The consortium-specific installed-reference integrity layer is now frozen in the maintained
+`resources/gdc_installed_reference.sha256` manifest. Partners verify their installed bundle against
+that shared maintainer-owned manifest rather than generating a local baseline. A full installed-file
+SHA256 verification is a one-time site/copy qualification step, **not** a per-run operation.
 
-During the current development phase, do not generate/freeze that canonical SHA256 manifest yet. Once
-it exists, a site installation is qualified with:
+Qualify a site installation with:
 
 ```bash
 bash resources/verify_gdc_references.sh --qualify resources/gdc
 ```
 
-Normal consortium runs will then check the small qualification stamp plus fast reference structure,
+Normal consortium runs check the small qualification stamp plus fast reference structure,
 without re-reading the ~30 GB STAR installation on every run.
 
 ### 0.6 Pre-pull the container images (one-time, ~1.4 GB)

@@ -35,6 +35,37 @@ if not isinstance(release["pipeline_release"], str) or not release["pipeline_rel
 if int(release["output_contract"]) != 1:
     fail("output contract changed from 1; update policy/docs deliberately before release")
 
+
+controller_env_path = ROOT / "environments" / "controller.yaml"
+controller_env = load_yaml(controller_env_path)
+if not isinstance(controller_env, dict):
+    fail("environments/controller.yaml must be a YAML mapping")
+controller_deps = controller_env.get("dependencies", [])
+if not isinstance(controller_deps, list):
+    fail("environments/controller.yaml dependencies must be a list")
+controller_specs = {dep for dep in controller_deps if isinstance(dep, str)}
+for required in ("python=3.13", "snakemake=9.19.0"):
+    if required not in controller_specs:
+        fail(f"maintained controller environment missing required constraint: {required}")
+if not any(dep.startswith("snakemake-executor-plugin-slurm") for dep in controller_specs):
+    fail("maintained controller environment must include the SLURM executor plugin")
+
+preflight = ROOT / "scripts" / "verify_installation.py"
+if not preflight.is_file():
+    fail("read-only installation preflight helper is missing")
+if preflight.stat().st_mode & 0o111 == 0:
+    fail("installation preflight helper is not executable")
+
+software_manifest = load_yaml(ROOT / "workflow" / "config" / "software_versions.yaml")
+tools = software_manifest.get("tools", {}) if isinstance(software_manifest, dict) else {}
+if not tools:
+    fail("software/container manifest has no tools")
+for name, spec in tools.items():
+    if not isinstance(spec, dict):
+        fail(f"software manifest entry {name} must be a mapping")
+    if spec.get("pull_default", False) and not str(spec.get("version_probe", "")).strip():
+        fail(f"default container {name} must declare a version_probe for preflight verification")
+
 configs = {
     "template": load_yaml(ROOT / "templates" / "config.yaml"),
     "realistic": load_yaml(ROOT / "tests" / "real" / "config.yaml"),
@@ -101,6 +132,10 @@ for path, phrases in stale_phrases.items():
         if phrase in text:
             fail(f"stale qualification wording remains in {path.relative_to(ROOT)}: {phrase}")
 
+for path in (ROOT / "README.md", ROOT / "templates" / "profiles" / "README.md"):
+    if "scripts/verify_installation.py" not in path.read_text():
+        fail(f"installation preflight is not documented in {path.relative_to(ROOT)}")
+
 print(
-    "PASS: release metadata, supported-core configs, maintained qualification artifacts, and key documentation are consistent"
+    "PASS: release metadata, controller/preflight policy, supported-core configs, maintained qualification artifacts, and key documentation are consistent"
 )

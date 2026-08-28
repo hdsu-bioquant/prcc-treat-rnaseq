@@ -12,30 +12,35 @@ tools:
     software: "STAR"
     version: "2.7.5c"
     uri: "docker://quay.io/biocontainers/star:2.7.5c--0"
+    version_probe: "STAR --version"
     pull_default: true
 
   fastqc:
     software: "FastQC"
     version: "0.12.1"
     uri: "docker://quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0"
+    version_probe: "fastqc --version"
     pull_default: true
 
   multiqc:
     software: "MultiQC"
     version: "1.21"
     uri: "docker://quay.io/biocontainers/multiqc:1.21--pyhdfd78af_0"
+    version_probe: "multiqc --version"
     pull_default: true
 
   fastp:
     software: "fastp"
     version: "0.23.4"
     uri: "docker://quay.io/biocontainers/fastp:0.23.4--hadf994f_2"
+    version_probe: "fastp --version"
     pull_default: true
 
   bbmap:
     software: "BBMap / BBDuk"
     version: "39.06"
     uri: "docker://quay.io/biocontainers/bbmap:39.06--h92535d8_0"
+    version_probe: "bbversion.sh"
     pull_default: true
 
   umitools:
@@ -55,18 +60,21 @@ tools:
     software: "samtools"
     version: "1.19"
     uri: "docker://quay.io/biocontainers/samtools:1.19--h50ea8bc_0"
+    version_probe: "samtools --version | head -n 1"
     pull_default: true
 
   htseq:
     software: "HTSeq"
     version: "2.0.9"
     uri: "docker://quay.io/biocontainers/htseq:2.0.9--py39h918f1d6_0"
+    version_probe: "htseq-count --version"
     pull_default: true
 
   py:
     software: "pandas"
     version: "1.5.2"
     uri: "docker://quay.io/biocontainers/pandas:1.5.2"
+    version_probe: "python -c 'import pandas; print(pandas.__version__)'"
     pull_default: true
 
   rseqc:

@@ -102,12 +102,15 @@ cores without editing it, for example `--cores 8`.
 
 ## 4. SLURM profile
 
-The SLURM profile requires Snakemake >=8.6 and the executor plugin in the environment that
-runs the Snakemake controller:
+Use the maintained controller environment where possible:
 
 ```bash
-conda install -c conda-forge -c bioconda snakemake-executor-plugin-slurm
+conda env create -f environments/controller.yaml
+conda activate prcc-rnaseq-controller
 ```
+
+It contains the maintained Snakemake version and the SLURM executor plugin. A site that deliberately
+uses a different controller environment should record and validate that environment before production.
 
 The template's `jobs` value limits how many scheduler jobs Snakemake may have active/submitted
 at once. Tune it to local policy.
@@ -164,9 +167,13 @@ python workflow/scripts/sample_sheet.py /path/to/run/samples.tsv
 snakemake --snakefile workflow/Snakefile --configfile /path/to/run/config.yaml -n
 ```
 
-Then check the profile with a profile-enabled dry-run:
+Then run the read-only installation preflight and a profile-enabled dry-run:
 
 ```bash
+python scripts/verify_installation.py \
+  --configfile /path/to/run/config.yaml \
+  --profile ~/.config/snakemake/prcc-rnaseq-slurm
+
 # local
 snakemake --snakefile workflow/Snakefile --configfile /path/to/run/config.yaml \
   --profile ~/.config/snakemake/prcc-rnaseq-local -n

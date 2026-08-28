@@ -64,7 +64,7 @@ You only need this section the first time you ever use the pipeline. Subsequent 
 | Software | Explanatory Section |
 |---|---|
 | **Conda / Miniconda** | §0.2 |
-| **Snakemake 8 or 9** | §0.3 |
+| **Maintained Snakemake controller environment** | §0.3 |
 | **Apptainer or Singularity** | §0.4 |
 | **GDC reference files** (genome + GTF + STAR index) | §0.5 |
 | **Container images** (pre-pulled) | §0.6 |
@@ -93,24 +93,28 @@ source ~/.bashrc
 conda --version
 ```
 
-### 0.3 Create the Snakemake pipeline environment
+### 0.3 Create the Snakemake controller environment
+
+The maintained controller specification is `environments/controller.yaml`:
 
 ```bash
-conda create -y -n snakemake-9.19.0 \
-    -c conda-forge -c bioconda \
-    'snakemake=9.19.0' \
-    snakemake-executor-plugin-slurm
+conda env create -f environments/controller.yaml
+conda activate prcc-rnaseq-controller
 ```
 
-Notes:
-- `snakemake-executor-plugin-slurm` is **required** to dispatch jobs via a copied `templates/profiles/slurm/` profile. Without it, the SLURM profile cannot submit jobs. On a different scheduler, install the matching plugin instead (e.g. `snakemake-executor-plugin-cluster-generic`, `-lsf`, `-drmaa`).
-- Local execution supports Snakemake 8/9; the current SLURM executor plugin requires Snakemake >=8.6. The consortium-tested controller version is 9.19.0.
+The specification fixes Snakemake at 9.19.0 and Python to the maintained 3.13 minor line while
+allowing Python patch updates. It also installs the SLURM executor plugin used by the maintained
+SLURM profile. The exact resolved Python/plugin versions are reported by the installation preflight.
 
 Verify:
+
 ```bash
-conda activate snakemake-9.19.0
+python --version
 snakemake --version
 ```
+
+Sites using a different scheduler may maintain an equivalent controller environment with the
+appropriate executor plugin; such an environment should be validated locally before production use.
 
 ### 0.4 Make Apptainer / Singularity available
 
@@ -183,14 +187,42 @@ bash containers/pull_images.sh
 Pre-pulling to `containers/sif/` decouples runs from flaky registry access (e.g. quay.io TLS
 timeouts). `containers/pull_images.sh` reads the pinned image list directly from
 `workflow/config/software_versions.yaml`, which is also used by the workflow and provenance. Local images
-use the stable `containers/sif/<name>.sif` convention. Tools with a manifest `version_probe` are checked
-before an existing image is reused, so an obsolete local image cannot silently shadow a newer pinned URI.
+use the stable `containers/sif/<name>.sif` convention. All default/core images declare a maintained
+`version_probe` and are checked before an existing image is reused, so an obsolete local image cannot
+silently shadow a newer pinned URI.
 
-After upgrading an existing checkout, rerun `bash containers/pull_images.sh`. The development transition
-to UMI-tools 1.1.6 temporarily used `containers/sif/umitools-1.1.6.sif`; the pull helper now migrates a
-verified copy back to the stable `containers/sif/umitools.sif` name, replacing an older 1.1.4 image if
-necessary and removing the temporary versioned file. If no valid local image is present, the workflow
-falls back to the declared `docker://` URI (pulled on demand into the Apptainer cache).
+After upgrading an existing checkout, rerun `bash containers/pull_images.sh`. A legacy temporary
+`containers/sif/umitools-1.1.6.sif` filename is migrated back to the stable
+`containers/sif/umitools.sif` name after version verification. If no valid local image is present, the
+workflow falls back to the declared `docker://` URI (pulled on demand into the Apptainer cache).
+
+### 0.7 Run the installation preflight
+
+The preflight is diagnostic and read-only: it checks the maintained controller environment, qualified
+GDC reference installation, required local containers and their expected tool versions, and an optional
+copied execution profile. It does not install, pull, qualify, or repair anything.
+
+For a run-specific check:
+
+```bash
+python scripts/verify_installation.py \
+  --configfile /path/to/run/config.yaml \
+  --profile ~/.config/snakemake/prcc-rnaseq-slurm
+```
+
+To save the report explicitly:
+
+```bash
+python scripts/verify_installation.py \
+  --configfile /path/to/run/config.yaml \
+  --profile ~/.config/snakemake/prcc-rnaseq-slurm \
+  --report /path/to/run/preflight.tsv
+```
+
+Routine preflight uses reference structure plus the qualification-stamp identity. Add
+`--full-reference-check` when a full canonical installed-reference SHA256 verification is required.
+Container checks are intentionally lightweight: required SIFs must be present and each default/core
+container must report the maintained tool version through its declared `version_probe`.
 
 ---
 
@@ -217,7 +249,7 @@ module load apptainer     # your cluster's module name (see §0.4); skip if alre
 
 ```bash
 source $HOME/miniconda3/etc/profile.d/conda.sh
-conda activate snakemake-9.19.0
+conda activate prcc-rnaseq-controller
 ```
 
 ### 1.4 Navigation to the pipeline directory

@@ -85,6 +85,8 @@ change before updating an affected baseline.
 
 Examples include:
 
+- changing the maintained controller environment (Python/Snakemake/executor-plugin constraints) when
+  scientific computation is not expected to change;
 - changing `pipeline_release` in `workflow/release.yaml` because release identity is recorded in the
   deterministic portable run metadata;
 - changing stable portable run metadata included in the deterministic validation set; or

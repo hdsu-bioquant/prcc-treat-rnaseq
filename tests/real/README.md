@@ -67,7 +67,7 @@ ownership boundaries with `templates/config.yaml` and `templates/samples.tsv` fo
 
 Before starting, the site should have:
 
-- a working Snakemake controller environment (consortium-tested version: 9.19.0);
+- the maintained Snakemake controller environment from `environments/controller.yaml` (or a site-equivalent environment that has been explicitly validated);
 - Apptainer/Singularity available on the machines that execute jobs;
 - the repository available on a filesystem visible to those jobs;
 - the pinned default container images pre-pulled for the current checkout (`bash containers/pull_images.sh`);
@@ -253,11 +253,17 @@ First re-check the exact public inputs without network access:
 bash tests/real/get_test_data.sh --verify-only
 ```
 
-Check the installed GDC structure:
+Run the read-only installation preflight against the copied config and the persistent site profile:
 
 ```bash
-bash resources/verify_gdc_references.sh "$GDC_DIR"
+python scripts/verify_installation.py \
+  --configfile "$RUN_DIR/config.yaml" \
+  --profile "$PROFILE"
 ```
+
+This includes the routine GDC structure/qualification-stamp check, controller-version checks, default
+container version probes, and basic profile checks. Use `--full-reference-check` only when a full
+canonical installed-reference SHA256 verification is required.
 
 Validate the copied sample sheet:
 

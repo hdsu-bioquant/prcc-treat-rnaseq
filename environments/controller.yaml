@@ -1,0 +1,20 @@
+name: prcc-rnaseq-controller
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+
+dependencies:
+  # Python minor line used for maintained controller qualification. Patch releases
+  # may advance within 3.13; preflight records the exact runtime version.
+  - python=3.13
+
+  # Keep the workflow controller itself fixed unless deliberately upgraded and
+  # requalified. The SLURM plugin is constrained to its current compatible major
+  # series rather than to one patch release because it is infrastructure-facing.
+  - snakemake=9.19.0
+  - snakemake-executor-plugin-slurm>=2.6,<3
+
+  # Used by repository helpers and explicit preflight checks.
+  - pyyaml>=6,<7
+  - packaging>=24,<26

@@ -47,6 +47,11 @@ This performs the expensive installed-file SHA256 verification and writes `.prcc
 
 A full `--qualify` check should be repeated after copying/migrating the reference installation, after suspected storage corruption/modification, or when the maintained reference bundle changes.
 
+For routine installation/run preflight, `scripts/verify_installation.py` checks this qualification-stamp
+identity together with controller, container presence/version, and optional execution-profile checks. Its
+`--full-reference-check` option performs a read-only canonical SHA256 verification without rewriting the
+qualification stamp.
+
 ## Maintainer-only canonical manifest updates
 
 Generate or replace the canonical installed manifest when the maintained reference bundle is being established or intentionally updated. The sequence is:

@@ -4,8 +4,9 @@
 # Copy this directory to a user/site-specific location and edit the COPY.
 # Do not edit templates/profiles/slurm/config.yaml in place.
 #
-# Requires Snakemake >=8.6 plus the SLURM executor plugin, for example:
-#   conda install -c conda-forge -c bioconda snakemake-executor-plugin-slurm
+# Use the maintained controller environment where possible:
+#   conda env create -f environments/controller.yaml
+#   conda activate prcc-rnaseq-controller
 #
 # Example:
 #   cp -r templates/profiles/slurm ~/.config/snakemake/prcc-rnaseq-slurm

@@ -9,7 +9,7 @@
 # Run once on a node WITH internet (login node is fine), after activating the
 # Snakemake environment (PyYAML is available there):
 #   module load system/singularity
-#   conda activate snakemake-9.19.0
+#   conda activate prcc-rnaseq-controller
 #   bash containers/pull_images.sh
 # Tunables: RETRIES (default 25), SLEEP seconds between tries (default 15),
 #           ALL=1 to also pull the heavy optional-module images (fusion/TE/ASE).
@@ -19,6 +19,15 @@ cd "$(dirname "$0")/.."          # -> repository root
 mkdir -p containers/sif
 RETRIES="${RETRIES:-25}"; SLEEP="${SLEEP:-15}"
 MANIFEST="workflow/config/software_versions.yaml"
+
+if command -v apptainer >/dev/null 2>&1; then
+  CONTAINER_RUNTIME="apptainer"
+elif command -v singularity >/dev/null 2>&1; then
+  CONTAINER_RUNTIME="singularity"
+else
+  echo "ERROR: neither apptainer nor singularity is available on PATH" >&2
+  exit 1
+fi
 
 rows_file="$(mktemp)"
 trap 'rm -f "$rows_file"' EXIT
@@ -72,7 +81,7 @@ verify_version() {
   [[ -z "$probe" ]] && return 0
 
   local observed
-  if ! observed="$(apptainer exec "$image" bash -lc "$probe" 2>&1)"; then
+  if ! observed="$("$CONTAINER_RUNTIME" exec "$image" bash -lc "$probe" 2>&1)"; then
     echo "  [verify-fail] $name: version probe failed: $probe" >&2
     echo "$observed" >&2
     return 1
@@ -127,7 +136,7 @@ while IFS=$'\t' read -r name uri local_sif version probe; do
     tmp="${out}.pulling.$$"
     rm -f "$tmp"
     echo "[$name] attempt $try/$RETRIES -> $uri"
-    if apptainer pull --force "$tmp" "$uri"; then
+    if "$CONTAINER_RUNTIME" pull --force "$tmp" "$uri"; then
       if verify_version "$name" "$tmp" "$version" "$probe"; then
         mv -f "$tmp" "$out"
         ok=1

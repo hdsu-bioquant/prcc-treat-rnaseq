@@ -172,4 +172,4 @@ pRCC-RNA-Seq was developed for the [pRCC-TREAT consortium](https://www.eppermed.
 - **Robert Schwarz** — foundational pipeline development
 - **Carl Herrmann** — principal investigator and supervision
 
-Formal software citation metadata is maintained in `CITATION.cff` for releases. License information and release history are maintained in the repository root.
+Software citation metadata is maintained in [`CITATION.cff`](CITATION.cff). The repository is distributed under the [MIT License](LICENSE), and notable release changes are recorded in [`CHANGELOG.md`](CHANGELOG.md).

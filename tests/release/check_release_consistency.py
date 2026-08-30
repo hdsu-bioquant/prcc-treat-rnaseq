@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -28,8 +29,11 @@ if not isinstance(release, dict):
 for key in ("pipeline_name", "pipeline_release", "output_contract"):
     if key not in release:
         fail(f"workflow/release.yaml missing {key}")
-if release["pipeline_name"] != "pRCC-RNA-Seq":
-    fail("workflow/release.yaml pipeline_name must be pRCC-RNA-Seq")
+pipeline_name = release["pipeline_name"]
+if not isinstance(pipeline_name, str) or not pipeline_name.strip():
+    fail("workflow/release.yaml pipeline_name must be a non-empty string")
+if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", pipeline_name):
+    fail("workflow/release.yaml pipeline_name must be a portable technical identifier")
 if not isinstance(release["pipeline_release"], str) or not release["pipeline_release"].strip():
     fail("workflow/release.yaml pipeline_release must be a non-empty string")
 if int(release["output_contract"]) != 1:
@@ -110,6 +114,46 @@ baseline_helper = ROOT / "tests" / "maintainers" / "update_validation_baseline.s
 if not baseline_helper.is_file():
     fail("maintainer validation-baseline update helper is missing")
 
+# Root release-facing metadata must exist and agree on stable project identity/license.
+license_path = ROOT / "LICENSE"
+citation_path = ROOT / "CITATION.cff"
+changelog_path = ROOT / "CHANGELOG.md"
+for path in (license_path, citation_path, changelog_path):
+    if not path.is_file() or path.stat().st_size == 0:
+        fail(f"required release metadata missing/empty: {path.relative_to(ROOT)}")
+
+license_text = license_path.read_text()
+if not license_text.startswith("MIT License\n"):
+    fail("LICENSE must contain the maintained MIT license text")
+if not re.search(r"Copyright \(c\) [^\n]*Health Data Science Unit", license_text):
+    fail("LICENSE must identify Health Data Science Unit as the maintained copyright holder")
+
+citation = load_yaml(citation_path)
+if not isinstance(citation, dict):
+    fail("CITATION.cff must be a YAML mapping")
+if str(citation.get("cff-version", "")) != "1.2.0":
+    fail("CITATION.cff must use CFF 1.2.0")
+if citation.get("title") != pipeline_name:
+    fail("CITATION.cff title must agree with workflow/release.yaml pipeline_name")
+if citation.get("license") != "MIT":
+    fail("CITATION.cff license must agree with the repository MIT license")
+authors = citation.get("authors", [])
+if not isinstance(authors, list) or not authors:
+    fail("CITATION.cff must contain software authors")
+for family in ("Bökenkamp", "Schwarz", "Herrmann"):
+    if not any(isinstance(author, dict) and author.get("family-names") == family for author in authors):
+        fail(f"CITATION.cff missing maintained software author: {family}")
+
+changelog_text = changelog_path.read_text()
+if not changelog_text.startswith("# Changelog\n"):
+    fail("CHANGELOG.md must start with the Changelog heading")
+if f"All notable changes to {pipeline_name}" not in changelog_text:
+    fail("CHANGELOG.md project name must agree with workflow/release.yaml pipeline_name")
+if "## [Unreleased]" not in changelog_text:
+    fail("CHANGELOG.md must retain an Unreleased section")
+if "### Notes" in changelog_text:
+    fail("CHANGELOG.md should use release-change categories rather than a free-form Notes section")
+
 required_docs = (
     ROOT / "docs" / "users" / "README.md",
     ROOT / "docs" / "users" / "general" / "README.md",
@@ -129,11 +173,58 @@ required_docs = (
     ROOT / "docs" / "users" / "consortium" / "io-definitions" / "results-contract.md",
     ROOT / "docs" / "users" / "consortium" / "io-definitions" / "qc-and-run-metadata.md",
     ROOT / "docs" / "maintainers" / "README.md",
+    ROOT / "docs" / "maintainers" / "controlled-documentation.md",
     ROOT / "docs" / "maintainers" / "technical-debt.md",
 )
 for path in required_docs:
     if not path.is_file() or path.stat().st_size == 0:
         fail(f"required documentation missing/empty: {path.relative_to(ROOT)}")
+
+def parse_controlled_table(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for line in path.read_text().splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) != 2 or cells[0] in {"Field", "---"}:
+            continue
+        values[cells[0]] = cells[1].strip("`")
+    return values
+
+
+controlled_docs: list[tuple[Path, str, str]] = []
+for path in sorted((ROOT / "docs" / "users" / "consortium" / "SOPs").glob("SOP-*.md")):
+    match = re.match(r"(SOP-\d+)-", path.name)
+    if not match:
+        fail(f"controlled SOP filename lacks stable SOP ID: {path.relative_to(ROOT)}")
+    controlled_docs.append((path, "SOP ID", match.group(1)))
+
+io_ids = {
+    "sample-sheet.md": "IO-01",
+    "run-configuration.md": "IO-02",
+    "results-contract.md": "IO-03",
+    "qc-and-run-metadata.md": "IO-04",
+}
+for name, doc_id in io_ids.items():
+    controlled_docs.append((ROOT / "docs" / "users" / "consortium" / "io-definitions" / name, "Document ID", doc_id))
+
+seen_ids: set[str] = set()
+for path, id_field, expected_id in controlled_docs:
+    metadata = parse_controlled_table(path)
+    for field in (id_field, "Status", "Document version", "Owner", "Applicable pipeline release", "Last revised"):
+        if not metadata.get(field):
+            fail(f"controlled document missing metadata field {field}: {path.relative_to(ROOT)}")
+    if metadata[id_field] != expected_id:
+        fail(f"controlled document ID disagrees with maintained identity: {path.relative_to(ROOT)}")
+    if expected_id in seen_ids:
+        fail(f"duplicate controlled document ID: {expected_id}")
+    seen_ids.add(expected_id)
+    if metadata["Status"] not in {"Draft", "Pilot", "Approved", "Superseded"}:
+        fail(f"invalid controlled document status in {path.relative_to(ROOT)}: {metadata['Status']}")
+    if not re.fullmatch(r"\d+\.\d+", metadata["Document version"]):
+        fail(f"invalid controlled document version in {path.relative_to(ROOT)}: {metadata['Document version']}")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", metadata["Last revised"]):
+        fail(f"invalid Last revised date in {path.relative_to(ROOT)}: {metadata['Last revised']}")
 
 # Controlled consortium documentation is self-contained and must not depend on
 # the unversioned/convenience general-user guide for normative instructions.
@@ -158,10 +249,15 @@ for path in user_docs:
             fail(f"stale development wording remains in user documentation {path.relative_to(ROOT)}: {phrase}")
 
 root_readme = (ROOT / "README.md").read_text()
+if pipeline_name not in root_readme:
+    fail("top-level README must contain the maintained pipeline name")
 for required_link in (
     "docs/users/general/README.md",
     "docs/users/consortium/README.md",
     "docs/maintainers/README.md",
+    "CITATION.cff",
+    "LICENSE",
+    "CHANGELOG.md",
 ):
     if required_link not in root_readme:
         fail(f"top-level README missing documentation entry point: {required_link}")
@@ -210,6 +306,13 @@ for path in (
     if "tests/release/check_release_consistency.py" not in path.read_text():
         fail(f"maintainer repository consistency check is not documented in {path.relative_to(ROOT)}")
 
+maintainer_readme = (ROOT / "docs" / "maintainers" / "README.md").read_text()
+if "controlled-documentation.md" not in maintainer_readme:
+    fail("maintainer README must link the controlled-documentation policy")
+release_policy_text = (ROOT / "docs" / "maintainers" / "release-policy.md").read_text()
+if "## Changelog maintenance" not in release_policy_text:
+    fail("release policy must define changelog maintenance")
+
 print(
-    "PASS: release metadata, controller/preflight policy, supported-core configs, maintained qualification artifacts, and controlled documentation structure are consistent"
+    "PASS: release/citation/license metadata, controller/preflight policy, supported-core configs, maintained qualification artifacts, and controlled documentation are consistent"
 )

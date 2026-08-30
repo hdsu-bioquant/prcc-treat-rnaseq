@@ -106,6 +106,27 @@ syntax checks are normally sufficient.
 If such a change alters generated portable files or execution behavior, use Level B or Level A as
 appropriate.
 
+## Controlled consortium documentation
+
+Consortium SOPs and IO definitions are release-facing controlled documents. Their document version, status, applicable pipeline release, ownership, and revision date are maintained according to `controlled-documentation.md`. Document versions are independent of the pipeline version.
+
+Pure controlled-document edits are normally Level C. If a document change accompanies or describes a behavioral/output change, use the validation level of that underlying repository change.
+
+## Changelog maintenance
+
+`CHANGELOG.md` records notable release-level changes rather than every commit. Maintain an `Unreleased` section at the top during development and use the Keep a Changelog categories where applicable: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, and `Security`. Omit empty categories.
+
+Entries should describe changes that matter to users, consortium sites, maintainers, reproducibility, or the supported contract. Internal refactors that have no externally meaningful effect do not require individual changelog entries. When a change requires requalification, migration, or special site action, say so explicitly.
+
+When cutting a release:
+
+1. review the accumulated `Unreleased` entries for accuracy and remove development-only notes;
+2. move the release contents beneath a heading of the form `## [VERSION] - YYYY-MM-DD`;
+3. create a fresh empty `## [Unreleased]` section above it; and
+4. keep already released entries stable except for clearly identified factual/typographical corrections.
+
+The changelog version/date must agree with the release being tagged.
+
 ## Baseline update policy
 
 Maintained baselines are versioned expected outputs used to detect unintended drift. They may be
@@ -136,14 +157,15 @@ understood intended change is a signal to investigate rather than a reason to up
 
 For a release candidate intended to carry the core qualification claim:
 
-1. run the maintained repository consistency check (`python tests/release/check_release_consistency.py`) and any other applicable static/syntax checks;
+1. finalize release-facing static metadata for the intended candidate: controlled-document status/applicability, `CHANGELOG.md`, `CITATION.cff`, and other repository metadata as applicable;
 2. set the intended release identity in `workflow/release.yaml`;
-3. run ordinary synthetic qualification against the maintained baseline;
-4. run ordinary realistic qualification against the maintained baseline;
-5. investigate any deterministic differences and apply the baseline-update policy above only where
+3. run the maintained repository consistency check (`python tests/release/check_release_consistency.py`) and any other applicable static/syntax checks;
+4. run ordinary synthetic qualification against the maintained baseline;
+5. run ordinary realistic qualification against the maintained baseline;
+6. investigate any deterministic differences and apply the baseline-update policy above only where
    the differences are understood and intended;
-6. rerun ordinary qualification against any updated baselines; and
-7. tag the exact reviewed source revision using the corresponding `v...` release tag.
+7. rerun ordinary qualification against any updated baselines; and
+8. tag the exact reviewed source revision using the corresponding `v...` release tag.
 
 A second clean workflow run is therefore not automatic for a release candidate: it is required when
 an intentional computational change creates a new deterministic expected result that must be shown

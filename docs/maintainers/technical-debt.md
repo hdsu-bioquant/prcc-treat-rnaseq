@@ -8,6 +8,3 @@ This file records small infrastructure/maintenance leftovers that are intentiona
 
 The synthetic and realistic validators also contain explicit UMI-tools version/source expectations in addition to the maintained `workflow/config/software_versions.yaml` manifest. Consider consolidating these assertions so the manifest remains the single version source while preserving validation coverage.
 
-## Documentation maintenance
-
-The consortium documentation is intentionally self-contained even where this duplicates general-user guidance. Static/release checks should be expanded when useful to catch contradictory maintained constants across templates, manifests, and controlled consortium documents.

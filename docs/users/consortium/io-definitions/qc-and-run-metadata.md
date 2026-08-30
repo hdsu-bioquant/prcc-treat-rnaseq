@@ -1,5 +1,14 @@
 # Consortium IO definition — QC and run metadata
 
+| Field | Value |
+|---|---|
+| Document ID | IO-04 |
+| Status | Draft |
+| Document version | 0.1 |
+| Owner | pRCC-TREAT bioinformatics maintainers |
+| Applicable pipeline release | `development` |
+| Last revised | 2026-08-30 |
+
 ## QC
 
 Portable QC products are stored beneath `results/qc/` and summarize library/run processing using the maintained workflow QC steps, including FastQC/MultiQC-derived products and workflow-generated metrics where applicable.

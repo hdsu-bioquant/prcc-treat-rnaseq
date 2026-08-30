@@ -18,9 +18,9 @@ The separation between SOP-01 and SOP-02 is deliberate: sites first prove the li
 
 ## IO definitions
 
-- [`sample-sheet.md`](io-definitions/sample-sheet.md)
-- [`run-configuration.md`](io-definitions/run-configuration.md)
-- [`results-contract.md`](io-definitions/results-contract.md)
-- [`qc-and-run-metadata.md`](io-definitions/qc-and-run-metadata.md)
+- [`IO-01 — Sample sheet`](io-definitions/sample-sheet.md)
+- [`IO-02 — Run configuration`](io-definitions/run-configuration.md)
+- [`IO-03 — Results contract`](io-definitions/results-contract.md)
+- [`IO-04 — QC and run metadata`](io-definitions/qc-and-run-metadata.md)
 
-The SOPs define required procedures. The IO definitions define the maintained input, configuration, output, QC, and run-metadata contracts used by those procedures.
+The SOPs define required procedures. The IO definitions define the maintained input, configuration, output, QC, and run-metadata contracts used by those procedures. Both document sets carry controlled version/status/applicability metadata so consortium sites can identify the exact documents issued for a pipeline release.

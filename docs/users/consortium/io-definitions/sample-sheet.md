@@ -1,5 +1,14 @@
 # Consortium IO definition — sample sheet
 
+| Field | Value |
+|---|---|
+| Document ID | IO-01 |
+| Status | Draft |
+| Document version | 0.1 |
+| Owner | pRCC-TREAT bioinformatics maintainers |
+| Applicable pipeline release | `development` |
+| Last revised | 2026-08-30 |
+
 ## Contract
 
 One row represents one sequencing library. `library_id` is the workflow/output identifier. `sample_id` is the biological sample identifier and may repeat when multiple libraries represent the same biological sample.

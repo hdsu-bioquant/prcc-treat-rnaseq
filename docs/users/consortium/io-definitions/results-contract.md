@@ -1,5 +1,14 @@
 # Consortium IO definition — results contract
 
+| Field | Value |
+|---|---|
+| Document ID | IO-03 |
+| Status | Draft |
+| Document version | 0.1 |
+| Owner | pRCC-TREAT bioinformatics maintainers |
+| Applicable pipeline release | `development` |
+| Last revised | 2026-08-30 |
+
 ## Output contract version
 
 The maintained output contract is version 1.

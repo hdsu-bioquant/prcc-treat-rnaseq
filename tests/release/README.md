@@ -6,7 +6,7 @@ Run from the repository root:
 python tests/release/check_release_consistency.py
 ```
 
-`check_release_consistency.py` is a maintainer-facing **static repository check**. It verifies that repository-maintained declarations and controlled artifacts agree, including release metadata, controller constraints, core container version probes, production/realistic config invariants, frozen qualification artifacts, and documentation structure.
+`check_release_consistency.py` is a maintainer-facing **static repository check**. It verifies that repository-maintained declarations and controlled artifacts agree, including pipeline/citation/license/changelog metadata, controller constraints, core container version probes, production/realistic config invariants, frozen qualification artifacts, and controlled SOP/IO document metadata and structure.
 
 It does not inspect a site's installed GDC bundle, execute containers, validate a copied execution profile, or run the scientific workflow. Those tasks belong to site qualification and workflow tests.
 

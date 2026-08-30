@@ -3,7 +3,8 @@
 All notable changes to pRCC-RNA-Seq will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and release versions follow [Semantic Versioning](https://semver.org/).
+and release versions follow [Semantic Versioning](https://semver.org/). Maintainer rules for
+updating this file are defined in [`docs/maintainers/release-policy.md`](docs/maintainers/release-policy.md#changelog-maintenance).
 
 ## [Unreleased]
 
@@ -32,7 +33,3 @@ and release versions follow [Semantic Versioning](https://semver.org/).
 - Qualification-baseline maintenance is explicit and separated from synthetic fixture integrity.
 - Consortium onboarding is organized as a lightweight first-line software installation followed by reference/resource and realistic site qualification.
 
-### Notes
-
-- Optional fusion, TE, ASE, and RSeQC modules are not part of the supported consortium core unless explicitly stated for a release.
-- The first release-candidate version and release date will be assigned when the release candidate is cut.

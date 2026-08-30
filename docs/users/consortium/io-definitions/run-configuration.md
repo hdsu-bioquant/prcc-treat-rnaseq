@@ -1,5 +1,14 @@
 # Consortium IO definition — run configuration
 
+| Field | Value |
+|---|---|
+| Document ID | IO-02 |
+| Status | Draft |
+| Document version | 0.1 |
+| Owner | pRCC-TREAT bioinformatics maintainers |
+| Applicable pipeline release | `development` |
+| Last revised | 2026-08-30 |
+
 ## Contract
 
 Consortium production runs start from `templates/config.yaml` and keep `consortium_run: true`.

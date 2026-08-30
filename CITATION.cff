@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use pRCC-RNA-Seq, please cite the software using the metadata in this file."
+title: "pRCC-RNA-Seq"
+type: software
+abstract: >-
+  An assay-aware Snakemake workflow for reproducible bulk RNA-seq processing
+  and gene-expression quantification, developed for harmonized multi-site
+  processing in the pRCC-TREAT consortium and also usable outside the
+  consortium.
+authors:
+  - family-names: "Bökenkamp"
+    given-names: "Jan-Eric"
+    affiliation: "Department of Bioinformatics, Institute of Pharmacy and Molecular Biotechnology (IPMB), Heidelberg University"
+  - family-names: "Schwarz"
+    given-names: "Robert"
+    affiliation: "Department of Bioinformatics, Institute of Pharmacy and Molecular Biotechnology (IPMB), Heidelberg University"
+  - family-names: "Herrmann"
+    given-names: "Carl"
+    affiliation: "Department of Bioinformatics, Institute of Pharmacy and Molecular Biotechnology (IPMB), Heidelberg University"
+license: MIT
+keywords:
+  - RNA-seq
+  - Snakemake
+  - gene expression
+  - UMI
+  - STAR
+  - reproducible bioinformatics

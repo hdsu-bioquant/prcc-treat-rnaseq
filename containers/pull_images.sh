@@ -101,7 +101,7 @@ while IFS=$'\t' read -r name uri local_sif version probe; do
   out="containers/sif/${local_sif}"
 
   # The first 1.1.6 development upgrade used a temporary versioned filename to
-  # prevent an old 1.1.4 umitools.sif from shadowing the new URI.  Now that
+  # Compatibility handling for a previously used UMI-tools image filename.
   # existing images are version-probed before reuse, migrate that verified image
   # back to the stable historical name and remove the temporary filename.
   if [[ "$name" == "umitools" && "$local_sif" == "umitools.sif" ]]; then

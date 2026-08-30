@@ -1,6 +1,7 @@
 # pRCC-RNA-Seq run templates
 
-This directory defines the **official user-facing run interface** for pRCC-RNA-Seq.
+This directory defines the maintained executable run interface. General guidance is under `docs/users/general/`; the controlled consortium contracts are under `docs/users/consortium/`.
+
 Start every new production analysis by copying `config.yaml` and `samples.tsv` to a
 run-specific location. Do not edit the files in `templates/` in place.
 

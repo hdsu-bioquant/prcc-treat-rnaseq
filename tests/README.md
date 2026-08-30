@@ -1,5 +1,8 @@
 # pRCC-RNA-Seq qualification tests
 
+> Consortium site qualification is governed by `docs/users/consortium/SOPs/SOP-02-site-qualification.md`; the files under `tests/` document and implement the qualification fixtures.
+
+
 The repository contains two complementary qualification layers with deliberately different jobs.
 
 ## `tests/synthetic/` — deterministic workflow regression

@@ -235,9 +235,9 @@ def _validate_consortium_reference_identity():
     if not os.path.isfile(_GDC_CANONICAL_MANIFEST):
         print(
             "WARNING: consortium_run=true, but the maintainer-owned canonical installed-reference "
-            "SHA256 manifest has not yet been frozen. This is expected during development; "
-            "exact GDC filenames and fast structural checks are enforced, but byte-level site "
-            "qualification is not yet required.",
+            "SHA256 manifest is unavailable. Exact GDC filenames and fast structural checks are "
+            "enforced, but consortium site qualification requires a maintained release containing "
+            "the canonical manifest.",
             file=sys.stderr,
         )
         return

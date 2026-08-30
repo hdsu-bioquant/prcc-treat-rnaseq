@@ -1,5 +1,8 @@
 # pRCC-RNA-Seq execution-profile templates
 
+> Consortium sites should prepare profiles as part of `docs/users/consortium/SOPs/SOP-01-site-installation.md`. This file documents profile-template mechanics and site-tunable execution settings.
+
+
 These profiles configure **where and with what infrastructure resources Snakemake runs**.
 They are intentionally separate from the biological run interface in `templates/config.yaml`
 and `templates/samples.tsv`.

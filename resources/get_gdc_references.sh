@@ -179,8 +179,8 @@ if [[ -s "$CANONICAL_MANIFEST" ]]; then
     bash "$VERIFY_SCRIPT" --qualify "$DEST"
 else
     echo
-    echo ">> Canonical installed-reference SHA256 manifest is not frozen yet."
-    echo ">> Skipping byte-level consortium qualification (expected during development)."
+    echo ">> Canonical installed-reference SHA256 manifest is unavailable."
+    echo ">> Skipping byte-level consortium qualification; use a maintained release containing the manifest for consortium operation."
 fi
 
 echo

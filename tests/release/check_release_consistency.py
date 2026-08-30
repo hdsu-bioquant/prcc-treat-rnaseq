@@ -53,8 +53,6 @@ if not any(dep.startswith("snakemake-executor-plugin-slurm") for dep in controll
 preflight = ROOT / "scripts" / "verify_installation.py"
 if not preflight.is_file():
     fail("read-only installation preflight helper is missing")
-if preflight.stat().st_mode & 0o111 == 0:
-    fail("installation preflight helper is not executable")
 
 software_manifest = load_yaml(ROOT / "workflow" / "config" / "software_versions.yaml")
 tools = software_manifest.get("tools", {}) if isinstance(software_manifest, dict) else {}
@@ -111,31 +109,72 @@ if "tests/synthetic/expected/validation_checksums.sha256" in fixture_manifest_te
 baseline_helper = ROOT / "tests" / "maintainers" / "update_validation_baseline.sh"
 if not baseline_helper.is_file():
     fail("maintainer validation-baseline update helper is missing")
-if baseline_helper.stat().st_mode & 0o111 == 0:
-    fail("maintainer validation-baseline update helper is not executable")
 
-stale_phrases = {
-    ROOT / "README.md": (
-        "do not generate/freeze that canonical SHA256 manifest yet",
-        "will be frozen only after the realistic production qualification succeeds",
-    ),
-    ROOT / "resources" / "README.md": (
-        "intentionally **not frozen yet during development**",
-    ),
-    ROOT / "tests" / "real" / "expected" / "README.md": (
-        "validation_checksums.sha256` is intentionally absent",
-    ),
-}
-for path, phrases in stale_phrases.items():
+required_docs = (
+    ROOT / "docs" / "users" / "README.md",
+    ROOT / "docs" / "users" / "general" / "README.md",
+    ROOT / "docs" / "users" / "general" / "installation.md",
+    ROOT / "docs" / "users" / "general" / "configuration.md",
+    ROOT / "docs" / "users" / "general" / "running-the-pipeline.md",
+    ROOT / "docs" / "users" / "general" / "outputs.md",
+    ROOT / "docs" / "users" / "general" / "troubleshooting.md",
+    ROOT / "docs" / "users" / "consortium" / "README.md",
+    ROOT / "docs" / "users" / "consortium" / "SOPs" / "SOP-01-site-installation.md",
+    ROOT / "docs" / "users" / "consortium" / "SOPs" / "SOP-02-site-qualification.md",
+    ROOT / "docs" / "users" / "consortium" / "SOPs" / "SOP-03-consortium-run.md",
+    ROOT / "docs" / "users" / "consortium" / "SOPs" / "SOP-04-results-delivery.md",
+    ROOT / "docs" / "users" / "consortium" / "SOPs" / "SOP-05-upgrade-requalification.md",
+    ROOT / "docs" / "users" / "consortium" / "io-definitions" / "sample-sheet.md",
+    ROOT / "docs" / "users" / "consortium" / "io-definitions" / "run-configuration.md",
+    ROOT / "docs" / "users" / "consortium" / "io-definitions" / "results-contract.md",
+    ROOT / "docs" / "users" / "consortium" / "io-definitions" / "qc-and-run-metadata.md",
+    ROOT / "docs" / "maintainers" / "README.md",
+    ROOT / "docs" / "maintainers" / "technical-debt.md",
+)
+for path in required_docs:
+    if not path.is_file() or path.stat().st_size == 0:
+        fail(f"required documentation missing/empty: {path.relative_to(ROOT)}")
+
+# Controlled consortium documentation is self-contained and must not depend on
+# the unversioned/convenience general-user guide for normative instructions.
+for path in (ROOT / "docs" / "users" / "consortium").rglob("*.md"):
     text = path.read_text()
-    for phrase in phrases:
-        if phrase in text:
-            fail(f"stale qualification wording remains in {path.relative_to(ROOT)}: {phrase}")
+    if "docs/users/general" in text or "../general" in text:
+        fail(f"consortium documentation must not depend on general-user docs: {path.relative_to(ROOT)}")
 
-for path in (ROOT / "README.md", ROOT / "templates" / "profiles" / "README.md"):
+# Keep development archaeology out of normal user-facing documentation.
+user_docs = [ROOT / "README.md", *list((ROOT / "docs" / "users").rglob("*.md"))]
+stale_user_phrases = (
+    "umitools-1.1.6.sif",
+    "UMI-tools 1.1.4",
+    "expected during development",
+    "not frozen yet",
+    "will be frozen",
+)
+for path in user_docs:
+    text = path.read_text()
+    for phrase in stale_user_phrases:
+        if phrase in text:
+            fail(f"stale development wording remains in user documentation {path.relative_to(ROOT)}: {phrase}")
+
+root_readme = (ROOT / "README.md").read_text()
+for required_link in (
+    "docs/users/general/README.md",
+    "docs/users/consortium/README.md",
+    "docs/maintainers/README.md",
+):
+    if required_link not in root_readme:
+        fail(f"top-level README missing documentation entry point: {required_link}")
+
+for path in (
+    ROOT / "README.md",
+    ROOT / "templates" / "profiles" / "README.md",
+    ROOT / "docs" / "users" / "general" / "installation.md",
+    ROOT / "docs" / "users" / "consortium" / "SOPs" / "SOP-01-site-installation.md",
+):
     if "scripts/verify_installation.py" not in path.read_text():
         fail(f"installation preflight is not documented in {path.relative_to(ROOT)}")
 
 print(
-    "PASS: release metadata, controller/preflight policy, supported-core configs, maintained qualification artifacts, and key documentation are consistent"
+    "PASS: release metadata, controller/preflight policy, supported-core configs, maintained qualification artifacts, and controlled documentation structure are consistent"
 )

@@ -1,6 +1,6 @@
 # Production GDC reference installation
 
-> Consortium operators should follow `docs/users/consortium/SOPs/SOP-01-site-installation.md`; this file documents the resource helper itself.
+> Consortium sites should follow `docs/users/consortium/SOPs/SOP-02-site-qualification.md`; this file documents the resource helper itself.
 
 
 The maintained GDC human reference bundle is installed **before** analysis. Normal Snakemake execution does not download GDC references and does not rebuild the GDC STAR index.

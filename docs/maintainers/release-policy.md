@@ -136,7 +136,7 @@ understood intended change is a signal to investigate rather than a reason to up
 
 For a release candidate intended to carry the core qualification claim:
 
-1. run repository/static consistency checks;
+1. run the maintained repository consistency check (`python tests/release/check_release_consistency.py`) and any other applicable static/syntax checks;
 2. set the intended release identity in `workflow/release.yaml`;
 3. run ordinary synthetic qualification against the maintained baseline;
 4. run ordinary realistic qualification against the maintained baseline;

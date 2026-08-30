@@ -1,5 +1,11 @@
 # General installation
 
+## Obtain the pipeline
+
+Use a published release/archive when reproducibility matters, or clone the repository and explicitly check out the desired release/tag. Avoid treating a moving development branch as a stable analysis release.
+
+After obtaining the repository, run subsequent commands from its root unless stated otherwise.
+
 ## Controller environment
 
 The maintained Conda specification is `environments/controller.yaml`:
@@ -37,7 +43,7 @@ General users may use `reference.mode: local` for deliberate custom-reference an
 
 ## Installation preflight
 
-The read-only preflight checks controller versions, reference installation, required local containers/tool versions, and an optional execution profile:
+After a run config and any persistent execution profile have been prepared, the read-only preflight can check controller versions, reference installation, required local containers/tool versions, and the selected profile:
 
 ```bash
 python scripts/verify_installation.py \

@@ -4,25 +4,23 @@
 |---|---|
 | SOP ID | SOP-05 |
 | Status | Draft |
-| Document version | 0.1 |
+| Document version | 0.2 |
 | Owner | pRCC-TREAT bioinformatics maintainers |
 | Applicable pipeline release | `development` |
 | Last revised | 2026-08-30 |
 
 ## Purpose
 
-Define the site procedure when adopting a new maintained pipeline release or when a persistent site installation changes in a way that can affect qualification.
+Define the site procedure when adopting a new maintained pipeline release or when persistent site infrastructure changes in a way that can affect the previously qualified execution environment.
 
 ## Procedure
 
-1. Obtain the target repository release.
-2. Review release notes and consortium documentation applicable to that release.
-3. Update/recreate the controller environment if required by the release.
-4. Rerun `bash containers/pull_images.sh` to obtain/verify maintained default containers.
-5. Apply any maintained reference-installation changes and requalify references if required.
-6. Review the copied persistent execution profile for compatibility with the target controller/Snakemake/plugin versions.
-7. Run the read-only installation preflight.
-8. Repeat SOP-02 synthetic and realistic qualification against the target release's maintained baselines.
-9. Process new restricted consortium data only after qualification passes.
+1. Obtain the exact target pipeline release/tag or release archive designated by the maintainers.
+2. Review release notes and the consortium documentation applicable to that release.
+3. Repeat the software-layer steps from SOP-01 as required: controller environment, container runtime, core containers, and synthetic qualification.
+4. Apply any maintained GDC reference changes and requalify the installed reference bundle when required by the release.
+5. Review or recreate the persistent local/SLURM execution profile when controller, scheduler, filesystem, bind-path, or execution-policy changes require it.
+6. Repeat the relevant SOP-02 realistic qualification steps using a fresh run directory, including full installation/run preflight against the persistent profile.
+7. Process new restricted consortium data only after required qualification passes.
 
-A site does not update repository-maintained expected validation checksums. If a maintained release intentionally changes deterministic outputs, the corresponding new baselines are supplied by maintainers with that release.
+A site does not update repository-maintained expected validation checksums. If a maintained release intentionally changes deterministic outputs, the corresponding reviewed baselines are supplied by the maintainers with that release.

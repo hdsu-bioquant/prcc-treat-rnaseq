@@ -62,7 +62,8 @@ For installation and execution details, continue with the appropriate documentat
 - execution-profile templates: [`templates/profiles/`](templates/profiles/README.md)
 - software/container manifest: `workflow/config/software_versions.yaml`
 - GDC resource installation: [`resources/`](resources/README.md)
-- read-only installation preflight: `scripts/verify_installation.py`
+- read-only site installation/run preflight: `scripts/verify_installation.py`
+- maintainer repository consistency check: `tests/release/check_release_consistency.py`
 - qualification tests: [`tests/`](tests/README.md)
 
 Pipeline release identity is maintained in `workflow/release.yaml`; copied run configurations do not control it.

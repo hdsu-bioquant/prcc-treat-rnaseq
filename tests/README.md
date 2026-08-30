@@ -1,6 +1,6 @@
 # pRCC-RNA-Seq qualification tests
 
-> Consortium site qualification is governed by `docs/users/consortium/SOPs/SOP-02-site-qualification.md`; the files under `tests/` document and implement the qualification fixtures.
+> Consortium onboarding uses the synthetic fixture in SOP-01 and the realistic fixture in SOP-02. The controlled procedure is defined in `docs/users/consortium/SOPs/`; the files under `tests/` document and implement the qualification fixtures.
 
 
 The repository contains two complementary qualification layers with deliberately different jobs.
@@ -12,7 +12,7 @@ runs with a fixed local execution model. It exercises all currently implemented 
 routes, exact UMI preprocessing, the portable/restricted output structure, biological expectations,
 and the frozen deterministic output subset.
 
-Run after workflow changes:
+Consortium sites run this as the final acceptance step of SOP-01; maintainers also use it after relevant workflow changes:
 
 ```bash
 bash tests/synthetic/run_test.sh
@@ -37,7 +37,7 @@ Start by downloading the exact public inputs:
 bash tests/real/get_test_data.sh
 ```
 
-Then follow `tests/real/README.md` step by step.
+Consortium sites follow `docs/users/consortium/SOPs/SOP-02-site-qualification.md`; `tests/real/README.md` provides the fixture/validator implementation details and general technical companion procedure.
 
 The synthetic test answers "does the workflow implementation behave correctly?"; the realistic
 test additionally answers "does this site run the consortium production interface against the

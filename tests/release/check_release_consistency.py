@@ -170,10 +170,45 @@ for path in (
     ROOT / "README.md",
     ROOT / "templates" / "profiles" / "README.md",
     ROOT / "docs" / "users" / "general" / "installation.md",
-    ROOT / "docs" / "users" / "consortium" / "SOPs" / "SOP-01-site-installation.md",
+    ROOT / "docs" / "users" / "consortium" / "SOPs" / "SOP-02-site-qualification.md",
+    ROOT / "docs" / "users" / "consortium" / "SOPs" / "SOP-03-consortium-run.md",
 ):
     if "scripts/verify_installation.py" not in path.read_text():
         fail(f"installation preflight is not documented in {path.relative_to(ROOT)}")
+
+sop1 = (ROOT / "docs" / "users" / "consortium" / "SOPs" / "SOP-01-site-installation.md").read_text()
+for required in ("workflow/release.yaml", "containers/pull_images.sh", "tests/synthetic/run_test.sh"):
+    if required not in sop1:
+        fail(f"SOP-01 missing first-line installation step: {required}")
+if "scripts/verify_installation.py" in sop1:
+    fail("SOP-01 must end at lightweight synthetic qualification; run-specific preflight belongs in SOP-02")
+if "resources/get_gdc_references.sh" in sop1:
+    fail("SOP-01 must not install the heavyweight GDC reference bundle; that belongs in SOP-02")
+
+sop2 = (ROOT / "docs" / "users" / "consortium" / "SOPs" / "SOP-02-site-qualification.md").read_text()
+for required in (
+    "resources/get_gdc_references.sh",
+    "resources/verify_gdc_references.sh --qualify",
+    "tests/real/get_test_data.sh",
+    "templates/profiles/slurm",
+    "templates/profiles/local",
+    "scripts/verify_installation.py",
+    "tests/real/validate_results.py",
+):
+    if required not in sop2:
+        fail(f"SOP-02 missing consortium site-qualification step: {required}")
+
+sop3 = (ROOT / "docs" / "users" / "consortium" / "SOPs" / "SOP-03-consortium-run.md").read_text()
+for required in ("prcc-rnaseq-slurm", "prcc-rnaseq-local", 'PROFILE='):
+    if required not in sop3:
+        fail(f"SOP-03 must document both qualified SLURM/local profile paths: {required}")
+
+for path in (
+    ROOT / "docs" / "maintainers" / "README.md",
+    ROOT / "tests" / "release" / "README.md",
+):
+    if "tests/release/check_release_consistency.py" not in path.read_text():
+        fail(f"maintainer repository consistency check is not documented in {path.relative_to(ROOT)}")
 
 print(
     "PASS: release metadata, controller/preflight policy, supported-core configs, maintained qualification artifacts, and controlled documentation structure are consistent"

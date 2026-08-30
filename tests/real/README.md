@@ -1,5 +1,7 @@
 # Realistic public-data qualification
 
+> For consortium sites, the normative controlled procedure is `docs/users/consortium/SOPs/SOP-02-site-qualification.md`. This README documents the realistic fixture, validator, and technical execution details.
+
 This is the production-style qualification exercise for pRCC-RNA-Seq. It complements the
 fully synthetic regression test rather than replacing it.
 

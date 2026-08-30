@@ -26,16 +26,22 @@ release_path = ROOT / "workflow" / "release.yaml"
 release = load_yaml(release_path)
 if not isinstance(release, dict):
     fail("workflow/release.yaml must be a YAML mapping")
-for key in ("pipeline_name", "pipeline_release", "output_contract"):
+for key in ("pipeline_name", "repository_slug", "pipeline_release", "output_contract"):
     if key not in release:
         fail(f"workflow/release.yaml missing {key}")
 pipeline_name = release["pipeline_name"]
 if not isinstance(pipeline_name, str) or not pipeline_name.strip():
     fail("workflow/release.yaml pipeline_name must be a non-empty string")
 if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", pipeline_name):
-    fail("workflow/release.yaml pipeline_name must be a portable technical identifier")
-if not isinstance(release["pipeline_release"], str) or not release["pipeline_release"].strip():
+    fail("workflow/release.yaml pipeline_name must be a portable display identifier")
+repository_slug = release["repository_slug"]
+if not isinstance(repository_slug, str) or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", repository_slug):
+    fail("workflow/release.yaml repository_slug must be a lowercase hyphenated repository identifier")
+pipeline_release = release["pipeline_release"]
+if not isinstance(pipeline_release, str) or not pipeline_release.strip():
     fail("workflow/release.yaml pipeline_release must be a non-empty string")
+if pipeline_release != "development" and not re.fullmatch(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?", pipeline_release):
+    fail("workflow/release.yaml pipeline_release must be development or a SemVer-like release")
 if int(release["output_contract"]) != 1:
     fail("output contract changed from 1; update policy/docs deliberately before release")
 
@@ -44,11 +50,13 @@ controller_env_path = ROOT / "environments" / "controller.yaml"
 controller_env = load_yaml(controller_env_path)
 if not isinstance(controller_env, dict):
     fail("environments/controller.yaml must be a YAML mapping")
+if controller_env.get("name") != f"{repository_slug}-controller":
+    fail("controller environment name must agree with workflow/release.yaml repository_slug")
 controller_deps = controller_env.get("dependencies", [])
 if not isinstance(controller_deps, list):
     fail("environments/controller.yaml dependencies must be a list")
 controller_specs = {dep for dep in controller_deps if isinstance(dep, str)}
-for required in ("python=3.13", "snakemake=9.19.0"):
+for required in ("python=3.13", "snakemake=9.20.0"):
     if required not in controller_specs:
         fail(f"maintained controller environment missing required constraint: {required}")
 if not any(dep.startswith("snakemake-executor-plugin-slurm") for dep in controller_specs):
@@ -137,6 +145,13 @@ if citation.get("title") != pipeline_name:
     fail("CITATION.cff title must agree with workflow/release.yaml pipeline_name")
 if citation.get("license") != "MIT":
     fail("CITATION.cff license must agree with the repository MIT license")
+if citation.get("repository-code") != f"https://github.com/hdsu-bioquant/{repository_slug}":
+    fail("CITATION.cff repository-code must agree with workflow/release.yaml repository_slug")
+if pipeline_release != "development":
+    if str(citation.get("version", "")) != pipeline_release:
+        fail("CITATION.cff version must agree with workflow/release.yaml pipeline_release")
+    if not citation.get("date-released"):
+        fail("CITATION.cff must contain date-released for a release candidate/release")
 authors = citation.get("authors", [])
 if not isinstance(authors, list) or not authors:
     fail("CITATION.cff must contain software authors")
@@ -153,6 +168,10 @@ if "## [Unreleased]" not in changelog_text:
     fail("CHANGELOG.md must retain an Unreleased section")
 if "### Notes" in changelog_text:
     fail("CHANGELOG.md should use release-change categories rather than a free-form Notes section")
+if pipeline_release != "development":
+    release_date = str(citation.get("date-released"))
+    if f"## [{pipeline_release}] - {release_date}" not in changelog_text:
+        fail("CHANGELOG.md release heading/date must agree with workflow/release.yaml and CITATION.cff")
 
 required_docs = (
     ROOT / "docs" / "users" / "README.md",
@@ -225,6 +244,11 @@ for path, id_field, expected_id in controlled_docs:
         fail(f"invalid controlled document version in {path.relative_to(ROOT)}: {metadata['Document version']}")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", metadata["Last revised"]):
         fail(f"invalid Last revised date in {path.relative_to(ROOT)}: {metadata['Last revised']}")
+    if pipeline_release != "development":
+        if metadata["Applicable pipeline release"] != pipeline_release:
+            fail(f"controlled document applicability must match {pipeline_release}: {path.relative_to(ROOT)}")
+        if metadata["Status"] not in {"Pilot", "Approved"}:
+            fail(f"release-facing controlled document must be Pilot or Approved: {path.relative_to(ROOT)}")
 
 # Controlled consortium documentation is self-contained and must not depend on
 # the unversioned/convenience general-user guide for normative instructions.
@@ -232,6 +256,21 @@ for path in (ROOT / "docs" / "users" / "consortium").rglob("*.md"):
     text = path.read_text()
     if "docs/users/general" in text or "../general" in text:
         fail(f"consortium documentation must not depend on general-user docs: {path.relative_to(ROOT)}")
+
+# The pre-RC rename/controller upgrade should be complete outside explicit changelog history.
+legacy_markers = ("pRCC-RNA-Seq", "prcc-rnaseq", "prcc_rnaseq", "snakemake=9.19.0", "Snakemake 9.19.0")
+for path in ROOT.rglob("*"):
+    if not path.is_file() or path == changelog_path or path == Path(__file__).resolve():
+        continue
+    if path.suffix not in {".md", ".py", ".sh", ".yaml", ".yml", ".cff"} and path.name not in {".gitignore", "README.md"}:
+        continue
+    try:
+        text = path.read_text()
+    except UnicodeDecodeError:
+        continue
+    for marker in legacy_markers:
+        if marker in text:
+            fail(f"legacy pipeline/controller identity remains in {path.relative_to(ROOT)}: {marker}")
 
 # Keep development archaeology out of normal user-facing documentation.
 user_docs = [ROOT / "README.md", *list((ROOT / "docs" / "users").rglob("*.md"))]
@@ -295,7 +334,7 @@ for required in (
         fail(f"SOP-02 missing consortium site-qualification step: {required}")
 
 sop3 = (ROOT / "docs" / "users" / "consortium" / "SOPs" / "SOP-03-consortium-run.md").read_text()
-for required in ("prcc-rnaseq-slurm", "prcc-rnaseq-local", 'PROFILE='):
+for required in (f"{repository_slug}-slurm", f"{repository_slug}-local", 'PROFILE='):
     if required not in sop3:
         fail(f"SOP-03 must document both qualified SLURM/local profile paths: {required}")
 

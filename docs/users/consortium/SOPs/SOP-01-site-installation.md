@@ -3,10 +3,10 @@
 | Field | Value |
 |---|---|
 | SOP ID | SOP-01 |
-| Status | Draft |
-| Document version | 0.2 |
+| Status | Pilot |
+| Document version | 0.3 |
 | Owner | pRCC-TREAT bioinformatics maintainers |
-| Applicable pipeline release | `development` |
+| Applicable pipeline release | `1.0.0-rc.1` |
 | Last revised | 2026-08-30 |
 
 ## Purpose
@@ -19,7 +19,7 @@ Completion of this SOP demonstrates that the designated pipeline release, contro
 
 ### 1. Obtain the designated pipeline release
 
-Use the exact pipeline release designated for the consortium exercise. For a published release or release candidate, obtain either:
+Use the exact pipeline release designated for the consortium exercise from [`hdsu-bioquant/prcc-treat-rnaseq`](https://github.com/hdsu-bioquant/prcc-treat-rnaseq). For a published release or release candidate, obtain either:
 
 - the corresponding release archive supplied by the maintainers; or
 - a Git checkout explicitly switched to the designated release tag.
@@ -38,7 +38,7 @@ The `pipeline_release` value must match the release or release candidate communi
 
 ```bash
 conda env create -f environments/controller.yaml
-conda activate prcc-rnaseq-controller
+conda activate prcc-treat-rnaseq-controller
 ```
 
 Confirm the controller tools are available:
@@ -48,7 +48,7 @@ python --version
 snakemake --version
 ```
 
-The maintained environment currently uses Python 3.13.x and Snakemake 9.19.0. The exact Python patch version may vary within the maintained minor line.
+The maintained environment currently uses Python 3.13.x and Snakemake 9.20.0. The exact Python patch version may vary within the maintained minor line.
 
 ### 3. Make Apptainer or Singularity available
 

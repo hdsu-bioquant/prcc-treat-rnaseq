@@ -15,9 +15,9 @@ Copy and edit a maintained profile once for the compute environment:
 
 ```bash
 mkdir -p ~/.config/snakemake
-cp -r templates/profiles/local ~/.config/snakemake/prcc-rnaseq-local
+cp -r templates/profiles/local ~/.config/snakemake/prcc-treat-rnaseq-local
 # or
-cp -r templates/profiles/slurm ~/.config/snakemake/prcc-rnaseq-slurm
+cp -r templates/profiles/slurm ~/.config/snakemake/prcc-treat-rnaseq-slurm
 ```
 
 Run with the copied profile:
@@ -26,7 +26,7 @@ Run with the copied profile:
 snakemake \
   --snakefile workflow/Snakefile \
   --configfile /path/to/run/config.yaml \
-  --profile ~/.config/snakemake/prcc-rnaseq-slurm \
+  --profile ~/.config/snakemake/prcc-treat-rnaseq-slurm \
   --keep-going
 ```
 

@@ -1,4 +1,4 @@
-# pRCC-RNA-Seq execution-profile templates
+# pRCC-TREAT-RNA-Seq execution-profile templates
 
 > Consortium sites should prepare profiles as part of `docs/users/consortium/SOPs/SOP-02-site-qualification.md`. This file documents profile-template mechanics and site-tunable execution settings.
 
@@ -23,14 +23,14 @@ For a workstation:
 
 ```bash
 mkdir -p ~/.config/snakemake
-cp -r templates/profiles/local ~/.config/snakemake/prcc-rnaseq-local
+cp -r templates/profiles/local ~/.config/snakemake/prcc-treat-rnaseq-local
 ```
 
 For SLURM:
 
 ```bash
 mkdir -p ~/.config/snakemake
-cp -r templates/profiles/slurm ~/.config/snakemake/prcc-rnaseq-slurm
+cp -r templates/profiles/slurm ~/.config/snakemake/prcc-treat-rnaseq-slurm
 ```
 
 You may instead keep the copied profile in a site or project directory and pass its path to
@@ -90,13 +90,13 @@ Launch from the repository's physical/canonical root. On systems where the repos
 reached through a symlink, resolve it first so login-node and compute-node/container paths agree:
 
 ```bash
-REPO="$(realpath /path/to/pRCC-RNA-Seq)"
+REPO="$(realpath /path/to/prcc-treat-rnaseq)"
 cd -P "$REPO"
 
 snakemake \
   --snakefile workflow/Snakefile \
   --configfile /path/to/run/config.yaml \
-  --profile ~/.config/snakemake/prcc-rnaseq-local \
+  --profile ~/.config/snakemake/prcc-treat-rnaseq-local \
   --keep-going
 ```
 
@@ -109,7 +109,7 @@ Use the maintained controller environment where possible:
 
 ```bash
 conda env create -f environments/controller.yaml
-conda activate prcc-rnaseq-controller
+conda activate prcc-treat-rnaseq-controller
 ```
 
 It contains the maintained Snakemake version and the SLURM executor plugin. A site that deliberately
@@ -140,13 +140,13 @@ Launch from the repository's physical/canonical root. On systems where the repos
 reached through a symlink, resolve it first so login-node and compute-node/container paths agree:
 
 ```bash
-REPO="$(realpath /path/to/pRCC-RNA-Seq)"
+REPO="$(realpath /path/to/prcc-treat-rnaseq)"
 cd -P "$REPO"
 
 snakemake \
   --snakefile workflow/Snakefile \
   --configfile /path/to/run/config.yaml \
-  --profile ~/.config/snakemake/prcc-rnaseq-slurm \
+  --profile ~/.config/snakemake/prcc-treat-rnaseq-slurm \
   --keep-going
 ```
 
@@ -175,15 +175,15 @@ Then run the read-only installation preflight and a profile-enabled dry-run:
 ```bash
 python scripts/verify_installation.py \
   --configfile /path/to/run/config.yaml \
-  --profile ~/.config/snakemake/prcc-rnaseq-slurm
+  --profile ~/.config/snakemake/prcc-treat-rnaseq-slurm
 
 # local
 snakemake --snakefile workflow/Snakefile --configfile /path/to/run/config.yaml \
-  --profile ~/.config/snakemake/prcc-rnaseq-local -n
+  --profile ~/.config/snakemake/prcc-treat-rnaseq-local -n
 
 # SLURM
 snakemake --snakefile workflow/Snakefile --configfile /path/to/run/config.yaml \
-  --profile ~/.config/snakemake/prcc-rnaseq-slurm -n
+  --profile ~/.config/snakemake/prcc-treat-rnaseq-slurm -n
 ```
 
 Before analyzing consortium data on a new installation, run the frozen synthetic qualification
@@ -223,7 +223,7 @@ Keep these concepts separate:
 | `templates/samples.tsv` → copied sample sheet | sequencing-library metadata + FASTQ paths | one per run |
 | `templates/profiles/local/` | official workstation profile template | copied once per workstation/user |
 | `templates/profiles/slurm/` | official SLURM profile template | copied once per site/user |
-| `~/.config/snakemake/prcc-rnaseq-*` (or another external path) | actual site/user profile copy | reused across runs; not tracked in this repository |
+| `~/.config/snakemake/prcc-treat-rnaseq-*` (or another external path) | actual site/user profile copy | reused across runs; not tracked in this repository |
 
 Do not put patient/library metadata, FASTQ lists, or scientific STAR parameters into an
 execution profile. Conversely, scheduler partition/account names and site-specific Apptainer

@@ -2,7 +2,7 @@
 
 > For consortium sites, the normative controlled procedure is `docs/users/consortium/SOPs/SOP-02-site-qualification.md`. This README documents the realistic fixture, validator, and technical execution details.
 
-This is the production-style qualification exercise for pRCC-RNA-Seq. It complements the
+This is the production-style qualification exercise for pRCC-TREAT-RNA-Seq. It complements the
 fully synthetic regression test rather than replacing it.
 
 The qualification has three purposes at the same time:
@@ -142,13 +142,13 @@ Choose the profile template that matches the environment and copy the **director
 
 ```bash
 mkdir -p ~/.config/snakemake
-cp -r templates/profiles/slurm ~/.config/snakemake/prcc-rnaseq-slurm
+cp -r templates/profiles/slurm ~/.config/snakemake/prcc-treat-rnaseq-slurm
 ```
 
 Then edit:
 
 ```text
-~/.config/snakemake/prcc-rnaseq-slurm/config.yaml
+~/.config/snakemake/prcc-treat-rnaseq-slurm/config.yaml
 ```
 
 for the site: scheduler job limits, partition/account if required, latency, and any Apptainer bind
@@ -161,7 +161,7 @@ container. Do not encode the location of one particular pipeline checkout with a
 
 ```bash
 mkdir -p ~/.config/snakemake
-cp -r templates/profiles/local ~/.config/snakemake/prcc-rnaseq-local
+cp -r templates/profiles/local ~/.config/snakemake/prcc-treat-rnaseq-local
 ```
 
 Edit the copied profile's workstation-wide CPU/RAM limits and bind paths as needed.
@@ -173,7 +173,7 @@ See `templates/profiles/README.md` for the full profile contract.
 For the commands below, define the chosen profile path, for example:
 
 ```bash
-PROFILE="$HOME/.config/snakemake/prcc-rnaseq-slurm"
+PROFILE="$HOME/.config/snakemake/prcc-treat-rnaseq-slurm"
 ```
 
 ---
@@ -186,7 +186,7 @@ Choose a run-owned directory outside the maintained repository. For example:
 # Resolve the repository through its physical/canonical filesystem path.
 # This matters on HPC systems where a convenient login-node symlink may not
 # exist under the same absolute name inside Apptainer on compute nodes.
-REPO="$(realpath /absolute/path/to/pRCC-RNA-Seq)"
+REPO="$(realpath /absolute/path/to/prcc-treat-rnaseq)"
 RUN_DIR=/absolute/path/to/pRCC-TREAT_realistic_qualification
 GDC_DIR="$(realpath /absolute/path/to/gdc)"
 

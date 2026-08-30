@@ -1,4 +1,4 @@
-# pRCC-RNA-Seq pinned software/container manifest.
+# pRCC-TREAT-RNA-Seq pinned software/container manifest.
 #
 # This file is the workflow-owned source of truth for container URIs and the
 # software versions reported in results/run/software_versions.tsv and MultiQC.
@@ -47,9 +47,7 @@ tools:
     software: "UMI-tools"
     version: "1.1.6"
     uri: "docker://quay.io/biocontainers/umi_tools:1.1.6--py39hbcbf7aa_0"
-    # Keep the stable historical local filename. pull_images.sh verifies the
-    # declared version before reusing it and migrates the temporary versioned
-    # 1.1.6 upgrade filename back to containers/sif/umitools.sif.
+    # Stable maintained local filename. Existing images are version-probed before reuse.
     local_sif: "umitools.sif"
     # Optional pull-time sanity probe. The pull helper checks that the image
     # actually reports the manifest-declared version before accepting it.

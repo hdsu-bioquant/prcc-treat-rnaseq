@@ -1,4 +1,4 @@
-# pRCC-RNA-Seq qualification tests
+# pRCC-TREAT-RNA-Seq qualification tests
 
 > Consortium onboarding uses the synthetic fixture in SOP-01 and the realistic fixture in SOP-02. The controlled procedure is defined in `docs/users/consortium/SOPs/`; the files under `tests/` document and implement the qualification fixtures.
 

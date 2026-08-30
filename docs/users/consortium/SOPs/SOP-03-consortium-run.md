@@ -3,10 +3,10 @@
 | Field | Value |
 |---|---|
 | SOP ID | SOP-03 |
-| Status | Draft |
-| Document version | 0.2 |
+| Status | Pilot |
+| Document version | 0.3 |
 | Owner | pRCC-TREAT bioinformatics maintainers |
-| Applicable pipeline release | `development` |
+| Applicable pipeline release | `1.0.0-rc.1` |
 | Last revised | 2026-08-30 |
 
 ## Purpose
@@ -27,13 +27,13 @@ Reuse the profile that passed SOP-02.
 For a SLURM site, for example:
 
 ```bash
-PROFILE="$HOME/.config/snakemake/prcc-rnaseq-slurm"
+PROFILE="$HOME/.config/snakemake/prcc-treat-rnaseq-slurm"
 ```
 
 For a local/workstation execution environment:
 
 ```bash
-PROFILE="$HOME/.config/snakemake/prcc-rnaseq-local"
+PROFILE="$HOME/.config/snakemake/prcc-treat-rnaseq-local"
 ```
 
 Do not switch production to a materially different site profile/environment without applying the upgrade/requalification guidance in SOP-05.

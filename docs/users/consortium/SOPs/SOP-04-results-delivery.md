@@ -3,10 +3,10 @@
 | Field | Value |
 |---|---|
 | SOP ID | SOP-04 |
-| Status | Draft |
+| Status | Pilot |
 | Document version | 0.1 |
 | Owner | pRCC-TREAT bioinformatics maintainers |
-| Applicable pipeline release | `development` |
+| Applicable pipeline release | `1.0.0-rc.1` |
 | Last revised | 2026-08-30 |
 
 ## Purpose

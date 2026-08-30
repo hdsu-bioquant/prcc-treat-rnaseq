@@ -1,5 +1,5 @@
 #==============================================================================#
-# pRCC-RNA-Seq — production run configuration template
+# pRCC-TREAT-RNA-Seq — production run configuration template
 #==============================================================================#
 # Copy this file to a run-specific location and edit the USER EDITS section.
 # Do not edit templates/config.yaml in place.
@@ -26,7 +26,7 @@ samples: /path/to/run/samples.tsv
 output: /path/to/run/output
 
 # Optional STAR scratch override. If omitted, defaults to <output>/intermediate/tmp.
-# tmpdir: /path/to/fast/scratch/pRCC-RNA-Seq/run_name
+# tmpdir: /path/to/fast/scratch/prcc-treat-rnaseq/run_name
 
 # Exact GDC reference bundle location. The production bundle must be installed
 # at the site before analysis; normal Snakemake execution never downloads it.

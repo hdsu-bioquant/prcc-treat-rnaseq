@@ -1,10 +1,10 @@
-# pRCC-RNA-Seq portable MultiQC policy.
+# pRCC-TREAT-RNA-Seq portable MultiQC policy.
 #
 # The report separates library-level pipeline QC from read-file-level FastQC
 # diagnostics. Software versions are supplied explicitly from the pipeline-owned
 # software manifest through a generated *_mqc_versions.yml file.
 
-title: "pRCC-RNA-Seq QC Report"
+title: "pRCC-TREAT-RNA-Seq QC Report"
 subtitle: "Library-level summary with read-level diagnostic sections"
 intro_text: >-
   The primary QC summary contains one row per sequencing library. Detailed FastQC
@@ -25,7 +25,7 @@ versions_table_group_header: "Software"
 # added later.
 custom_content:
   order:
-    - prcc_rnaseq_qc
+    - prcc_treat_rnaseq_qc
 
 # Human-facing column labels are written directly into the temporary custom-content
 # TSV; the canonical results/qc/qc_metrics.tsv retains machine-friendly field names.

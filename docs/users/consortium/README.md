@@ -1,6 +1,6 @@
 # Consortium user documentation
 
-This documentation defines the controlled operating interface for harmonized multi-site pRCC-RNA-Seq analyses. It is written for pRCC-TREAT but is intentionally usable by other consortia that adopt the same maintained processing contract.
+This documentation defines the controlled operating interface for harmonized multi-site pRCC-TREAT-RNA-Seq analyses. It is written for pRCC-TREAT but is intentionally usable by other consortia that adopt the same maintained processing contract.
 
 The consortium documentation is self-contained. Normative instructions do not depend on the general-user guide.
 

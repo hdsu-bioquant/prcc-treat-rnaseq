@@ -75,7 +75,7 @@ def umi_design(row):
 # MultiQC custom-content TSV files accept YAML configuration in leading comment
 # lines.  For table plots, column configuration belongs in the top-level
 # ``headers`` mapping (not inside ``pconfig``).
-meta = """# id: prcc_rnaseq_qc
+meta = """# id: prcc_treat_rnaseq_qc
 # section_name: Library QC Summary
 # description: >-
 #   One row per sequencing library. STAR metrics are library-level. Detailed
@@ -84,9 +84,9 @@ meta = """# id: prcc_rnaseq_qc
 # format: tsv
 # plot_type: table
 # pconfig:
-#   id: prcc_rnaseq_qc_table
-#   title: pRCC-RNA-Seq library QC summary
-#   namespace: pRCC-RNA-Seq
+#   id: prcc_treat_rnaseq_qc_table
+#   title: pRCC-TREAT-RNA-Seq library QC summary
+#   namespace: pRCC-TREAT-RNA-Seq
 #   col1_header: Library ID
 # headers:
 #   sample_id:

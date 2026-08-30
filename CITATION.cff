@@ -1,6 +1,6 @@
 cff-version: 1.2.0
-message: "If you use pRCC-RNA-Seq, please cite the software using the metadata in this file."
-title: "pRCC-RNA-Seq"
+message: "If you use pRCC-TREAT-RNA-Seq, please cite the software using the metadata in this file."
+title: "pRCC-TREAT-RNA-Seq"
 type: software
 abstract: >-
   An assay-aware Snakemake workflow for reproducible bulk RNA-seq processing
@@ -17,6 +17,9 @@ authors:
   - family-names: "Herrmann"
     given-names: "Carl"
     affiliation: "Department of Bioinformatics, Institute of Pharmacy and Molecular Biotechnology (IPMB), Heidelberg University"
+version: "1.0.0-rc.1"
+date-released: 2026-08-30
+repository-code: "https://github.com/hdsu-bioquant/prcc-treat-rnaseq"
 license: MIT
 keywords:
   - RNA-seq

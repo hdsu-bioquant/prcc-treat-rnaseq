@@ -1,10 +1,10 @@
 # User documentation
 
-pRCC-RNA-Seq has two user-documentation tracks because independent analyses and harmonized consortium analyses have different operational requirements.
+pRCC-TREAT-RNA-Seq has two user-documentation tracks because independent analyses and harmonized consortium analyses have different operational requirements.
 
 ## General users
 
-[`general/`](general/README.md) is a conventional pipeline guide for users applying pRCC-RNA-Seq outside a controlled consortium workflow. It explains supported inputs, installation, configuration, execution, outputs, and troubleshooting. General users may deliberately adapt supported resources and settings and normally set `consortium_run: false` when they do so.
+[`general/`](general/README.md) is a conventional pipeline guide for users applying pRCC-TREAT-RNA-Seq outside a controlled consortium workflow. It explains supported inputs, installation, configuration, execution, outputs, and troubleshooting. General users may deliberately adapt supported resources and settings and normally set `consortium_run: false` when they do so.
 
 ## Consortium users
 

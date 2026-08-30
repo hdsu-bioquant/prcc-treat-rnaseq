@@ -8,8 +8,7 @@ code, references, dependencies, provenance, or portable outputs change.
 - Pipeline releases use Semantic Versioning (`MAJOR.MINOR.PATCH`).
 - Git/repository release tags use the `v` prefix, for example `v1.0.0`.
 - Pre-release candidates use the SemVer pre-release form, for example `v1.0.0-rc.1`.
-- Machine-readable pipeline identity is maintainer-owned in `workflow/release.yaml` and is not a
-  run configuration field.
+- Human-facing pipeline identity (`pipeline_name`) and the lowercase GitHub/repository slug (`repository_slug`) are maintainer-owned in `workflow/release.yaml`; copied run configurations do not control them.
 
 ## Release qualification
 

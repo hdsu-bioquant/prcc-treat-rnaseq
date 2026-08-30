@@ -2,7 +2,7 @@
 
 ## Obtain the pipeline
 
-Use a published release/archive when reproducibility matters, or clone the repository and explicitly check out the desired release/tag. Avoid treating a moving development branch as a stable analysis release.
+The maintained repository is [`hdsu-bioquant/prcc-treat-rnaseq`](https://github.com/hdsu-bioquant/prcc-treat-rnaseq). Use a published release/archive when reproducibility matters, or clone the repository and explicitly check out the desired release/tag. Avoid treating a moving development branch as a stable analysis release.
 
 After obtaining the repository, run subsequent commands from its root unless stated otherwise.
 
@@ -12,10 +12,10 @@ The maintained Conda specification is `environments/controller.yaml`:
 
 ```bash
 conda env create -f environments/controller.yaml
-conda activate prcc-rnaseq-controller
+conda activate prcc-treat-rnaseq-controller
 ```
 
-The maintained environment uses Python 3.13.x, Snakemake 9.19.0, and the SLURM executor plugin. Sites using another scheduler may maintain an equivalent controller environment.
+The maintained environment uses Python 3.13.x, Snakemake 9.20.0, and the SLURM executor plugin. Sites using another scheduler may maintain an equivalent controller environment.
 
 ## Apptainer or Singularity
 
@@ -48,7 +48,7 @@ After a run config and any persistent execution profile have been prepared, the 
 ```bash
 python scripts/verify_installation.py \
   --configfile /path/to/run/config.yaml \
-  --profile ~/.config/snakemake/prcc-rnaseq-slurm
+  --profile ~/.config/snakemake/prcc-treat-rnaseq-slurm
 ```
 
 Use `--full-reference-check` when a complete GDC installed-reference SHA256 verification is desired.

@@ -59,7 +59,7 @@ command_version() {
 }
 
 echo "============================================================"
-echo "pRCC-RNA-Seq synthetic smoke test"
+echo "pRCC-TREAT-RNA-Seq synthetic smoke test"
 echo "============================================================"
 echo "Date:          $(date --iso-8601=seconds 2>/dev/null || date)"
 echo "Host:          $(hostname 2>/dev/null || echo unknown)"

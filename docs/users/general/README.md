@@ -1,6 +1,6 @@
 # General user guide
 
-This guide is for users running pRCC-RNA-Seq outside a controlled consortium workflow. It describes the maintained pipeline interface without imposing consortium-specific harmonization requirements.
+This guide is for users running pRCC-TREAT-RNA-Seq outside a controlled consortium workflow. It describes the maintained pipeline interface without imposing consortium-specific harmonization requirements.
 
 ## Guide
 

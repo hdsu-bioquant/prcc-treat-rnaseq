@@ -1,12 +1,12 @@
 #==============================================================================#
-# pRCC-RNA-Seq — local workstation execution profile template
+# pRCC-TREAT-RNA-Seq — local workstation execution profile template
 #==============================================================================#
 # Copy this directory to a user/site-specific location and edit the COPY.
 # Do not edit templates/profiles/local/config.yaml in place.
 #
 # Example:
-#   cp -r templates/profiles/local ~/.config/snakemake/prcc-rnaseq-local
-#   snakemake --profile ~/.config/snakemake/prcc-rnaseq-local \
+#   cp -r templates/profiles/local ~/.config/snakemake/prcc-treat-rnaseq-local
+#   snakemake --profile ~/.config/snakemake/prcc-treat-rnaseq-local \
 #             --configfile /path/to/run/config.yaml
 #==============================================================================#
 
@@ -40,7 +40,7 @@ software-deployment-method:
 # apptainer-args: "--bind /data,/scratch,/reference"
 
 # Fallback resources for lightweight rules that do not declare their own values.
-# Most compute-heavy pRCC-RNA-Seq rules define mem_mb/runtime explicitly.
+# Most compute-heavy pRCC-TREAT-RNA-Seq rules define mem_mb/runtime explicitly.
 default-resources:
   mem_mb: 4000
   runtime: 60

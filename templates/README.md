@@ -1,4 +1,4 @@
-# pRCC-RNA-Seq run templates
+# pRCC-TREAT-RNA-Seq run templates
 
 This directory defines the maintained executable run interface. General guidance is under `docs/users/general/`; the controlled consortium contracts are under `docs/users/consortium/`.
 
@@ -41,13 +41,13 @@ compute environment, edit the copy, and reuse it across runs. For example:
 
 ```bash
 mkdir -p ~/.config/snakemake
-cp -r templates/profiles/local ~/.config/snakemake/prcc-rnaseq-local
-# or: cp -r templates/profiles/slurm ~/.config/snakemake/prcc-rnaseq-slurm
+cp -r templates/profiles/local ~/.config/snakemake/prcc-treat-rnaseq-local
+# or: cp -r templates/profiles/slurm ~/.config/snakemake/prcc-treat-rnaseq-slurm
 
 snakemake \
   --snakefile workflow/Snakefile \
   --configfile /path/to/run/config.yaml \
-  --profile ~/.config/snakemake/prcc-rnaseq-local \
+  --profile ~/.config/snakemake/prcc-treat-rnaseq-local \
   --keep-going
 ```
 
@@ -59,7 +59,7 @@ into the portable results package.
 ## 2. Path rules
 
 **Important:** relative paths are resolved relative to the process working directory
-(normally the pRCC-RNA-Seq repository root), **not** relative to `config.yaml` or
+(normally the pRCC-TREAT-RNA-Seq repository root), **not** relative to `config.yaml` or
 `samples.tsv`.
 
 For production runs, absolute paths are recommended for:

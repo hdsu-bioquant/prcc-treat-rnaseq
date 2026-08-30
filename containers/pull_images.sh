@@ -9,7 +9,7 @@
 # Run once on a node WITH internet (login node is fine), after activating the
 # Snakemake environment (PyYAML is available there):
 #   module load system/singularity
-#   conda activate prcc-rnaseq-controller
+#   conda activate prcc-treat-rnaseq-controller
 #   bash containers/pull_images.sh
 # Tunables: RETRIES (default 25), SLEEP seconds between tries (default 15),
 #           ALL=1 to also pull the heavy optional-module images (fusion/TE/ASE).
@@ -99,29 +99,6 @@ fail=0
 while IFS=$'\t' read -r name uri local_sif version probe; do
   [[ -z "$name" ]] && continue
   out="containers/sif/${local_sif}"
-
-  # The first 1.1.6 development upgrade used a temporary versioned filename to
-  # Compatibility handling for a previously used UMI-tools image filename.
-  # existing images are version-probed before reuse, migrate that verified image
-  # back to the stable historical name and remove the temporary filename.
-  if [[ "$name" == "umitools" && "$local_sif" == "umitools.sif" ]]; then
-    migrated="containers/sif/umitools-1.1.6.sif"
-    if [[ -s "$migrated" ]]; then
-      if verify_version "$name" "$migrated" "$version" "$probe"; then
-        if [[ -s "$out" ]] && verify_version "$name" "$out" "$version" "$probe"; then
-          rm -f "$migrated"
-          echo "[cleanup] removed redundant $migrated"
-        else
-          rm -f "$out"
-          mv -f "$migrated" "$out"
-          echo "[migrate] verified UMI-tools $version image -> $out"
-        fi
-      else
-        echo "[cleanup] removing invalid temporary UMI-tools image: $migrated" >&2
-        rm -f "$migrated"
-      fi
-    fi
-  fi
 
   if [[ -s "$out" ]]; then
     if verify_version "$name" "$out" "$version" "$probe"; then

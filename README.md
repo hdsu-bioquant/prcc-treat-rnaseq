@@ -1,8 +1,11 @@
-# pRCC-RNA-Seq
+# pRCC-TREAT-RNA-Seq
 
-pRCC-RNA-Seq is an assay-aware Snakemake workflow for reproducible bulk RNA-seq processing and gene-expression quantification. The supported core currently covers full-length paired-end and QuantSeq single-end libraries, optional library-level UMI handling, GDC-aligned STAR processing, standardized QC, and portable run outputs.
+pRCC-TREAT-RNA-Seq is an assay-aware Snakemake workflow for reproducible bulk RNA-seq processing and gene-expression quantification. The supported core currently covers full-length paired-end and QuantSeq single-end libraries, optional library-level UMI handling, GDC-aligned STAR processing, standardized QC, and portable run outputs.
 
 The pipeline was developed for the **pRCC-TREAT consortium** to support harmonized multi-site processing of papillary renal cell carcinoma RNA-seq data. It can also be used independently outside the consortium, including with deliberate non-consortium reference configurations.
+
+**Release candidate:** `v1.0.0-rc.1`  
+**Repository:** [`hdsu-bioquant/prcc-treat-rnaseq`](https://github.com/hdsu-bioquant/prcc-treat-rnaseq)
 
 ## Workflow overview
 
@@ -55,7 +58,7 @@ The workflow is intended for Linux systems with Conda and Apptainer or Singulari
 |---|---|
 | Controller environment | `environments/controller.yaml` |
 | Python | 3.13.x in the maintained controller environment |
-| Snakemake | 9.19.0 |
+| Snakemake | 9.20.0 |
 | Container runtime | Apptainer or Singularity |
 | Execution profiles | maintained local and SLURM templates |
 | Synthetic qualification | fixed at 2 cores; lightweight installation test |
@@ -71,7 +74,7 @@ The quickest useful first run is the same lightweight first-line installation pa
 
 ```bash
 conda env create -f environments/controller.yaml
-conda activate prcc-rnaseq-controller
+conda activate prcc-treat-rnaseq-controller
 
 python --version
 snakemake --version
@@ -164,7 +167,7 @@ Pipeline release identity is maintained in `workflow/release.yaml`; copied run c
 
 ## Development and authorship
 
-pRCC-RNA-Seq was developed for the [pRCC-TREAT consortium](https://www.eppermed.eu/funding-projects/projects-results/project-database/prcc-treat/) by the Department of Bioinformatics at the [Institute of Pharmacy and Molecular Biotechnology (IPMB), Heidelberg University](https://www.ipmb.uni-heidelberg.de/en), with development based in the [Health Data Science Unit / BioQuant group](https://www.hdsu.org).
+pRCC-TREAT-RNA-Seq was developed for the [pRCC-TREAT consortium](https://www.eppermed.eu/funding-projects/projects-results/project-database/prcc-treat/) by the Department of Bioinformatics at the [Institute of Pharmacy and Molecular Biotechnology (IPMB), Heidelberg University](https://www.ipmb.uni-heidelberg.de/en), with development based in the [Health Data Science Unit / BioQuant group](https://www.hdsu.org).
 
 **Software authors**
 

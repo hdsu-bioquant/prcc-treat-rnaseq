@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the stable one-row pRCC-RNA-Seq QC table for one library.
+"""Build the stable one-row pRCC-TREAT-RNA-Seq QC table for one library.
 
 This deliberately exposes a small, version-controlled QC schema instead of making
 MultiQC's internal export formats the consortium data contract. MultiQC remains the

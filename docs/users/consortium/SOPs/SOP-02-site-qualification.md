@@ -3,10 +3,10 @@
 | Field | Value |
 |---|---|
 | SOP ID | SOP-02 |
-| Status | Draft |
-| Document version | 0.2 |
+| Status | Pilot |
+| Document version | 0.3 |
 | Owner | pRCC-TREAT bioinformatics maintainers |
-| Applicable pipeline release | `development` |
+| Applicable pipeline release | `1.0.0-rc.1` |
 | Last revised | 2026-08-30 |
 
 ## Purpose
@@ -62,16 +62,16 @@ For SLURM:
 
 ```bash
 mkdir -p ~/.config/snakemake
-cp -r templates/profiles/slurm ~/.config/snakemake/prcc-rnaseq-slurm
-PROFILE="$HOME/.config/snakemake/prcc-rnaseq-slurm"
+cp -r templates/profiles/slurm ~/.config/snakemake/prcc-treat-rnaseq-slurm
+PROFILE="$HOME/.config/snakemake/prcc-treat-rnaseq-slurm"
 ```
 
 For local/workstation execution:
 
 ```bash
 mkdir -p ~/.config/snakemake
-cp -r templates/profiles/local ~/.config/snakemake/prcc-rnaseq-local
-PROFILE="$HOME/.config/snakemake/prcc-rnaseq-local"
+cp -r templates/profiles/local ~/.config/snakemake/prcc-treat-rnaseq-local
+PROFILE="$HOME/.config/snakemake/prcc-treat-rnaseq-local"
 ```
 
 Edit the copied profile for site execution settings such as resource limits, scheduler/account settings where applicable, latency, and Apptainer/Singularity bind roots. Do not edit the maintained templates in place and do not put scheduler/site infrastructure settings into run-owned `config.yaml`.
@@ -83,7 +83,7 @@ The profile that passes this realistic qualification should be retained and reus
 Resolve the physical repository and GDC paths and create a run-owned directory outside the maintained repository:
 
 ```bash
-REPO="$(realpath /absolute/path/to/pRCC-RNA-Seq)"
+REPO="$(realpath /absolute/path/to/prcc-treat-rnaseq)"
 GDC_DIR="$(realpath /absolute/path/to/gdc)"
 RUN_DIR=/absolute/path/to/pRCC-TREAT_realistic_qualification
 

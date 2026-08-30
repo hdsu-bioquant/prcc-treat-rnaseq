@@ -1,5 +1,5 @@
 #==============================================================================#
-# pRCC-RNA-Seq — realistic public-data qualification run configuration
+# pRCC-TREAT-RNA-Seq — realistic public-data qualification run configuration
 #==============================================================================#
 # Maintainer-owned qualification definition.
 #
@@ -18,7 +18,7 @@ samples: /EDIT/ABSOLUTE/PATH/TO/qualification-run/samples.tsv
 output: /EDIT/ABSOLUTE/PATH/TO/qualification-run/output
 
 # Optional site-specific scratch can be added after copying, if needed:
-# tmpdir: /path/to/fast/scratch/pRCC-RNA-Seq-real-qualification
+# tmpdir: /path/to/fast/scratch/prcc-treat-rnaseq-real-qualification
 
 reference:
   mode: gdc

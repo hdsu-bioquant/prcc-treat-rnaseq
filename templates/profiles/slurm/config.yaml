@@ -1,16 +1,16 @@
 #==============================================================================#
-# pRCC-RNA-Seq — SLURM HPC execution profile template
+# pRCC-TREAT-RNA-Seq — SLURM HPC execution profile template
 #==============================================================================#
 # Copy this directory to a user/site-specific location and edit the COPY.
 # Do not edit templates/profiles/slurm/config.yaml in place.
 #
 # Use the maintained controller environment where possible:
 #   conda env create -f environments/controller.yaml
-#   conda activate prcc-rnaseq-controller
+#   conda activate prcc-treat-rnaseq-controller
 #
 # Example:
-#   cp -r templates/profiles/slurm ~/.config/snakemake/prcc-rnaseq-slurm
-#   snakemake --profile ~/.config/snakemake/prcc-rnaseq-slurm \
+#   cp -r templates/profiles/slurm ~/.config/snakemake/prcc-treat-rnaseq-slurm
+#   snakemake --profile ~/.config/snakemake/prcc-treat-rnaseq-slurm \
 #             --configfile /path/to/run/config.yaml
 #==============================================================================#
 

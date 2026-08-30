@@ -173,7 +173,7 @@ rule multiqc:
         cp {params.build}/multiqc_report.html {output.html}
 
         # MultiQC names its data directory from the report stem (for example
-        # multiqc_report_data in v1.21). Keep the pRCC-RNA-Seq output contract
+        # multiqc_report_data in v1.21). Keep the pRCC-TREAT-RNA-Seq output contract
         # stable as restricted/qc/multiqc_data regardless of MultiQC version.
         data_src="{params.build}/multiqc_report_data"
         if [[ ! -d "$data_src" ]]; then

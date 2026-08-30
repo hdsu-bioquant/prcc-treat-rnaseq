@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #==============================================================================#
-# Install the EXACT GDC reference resources used by pRCC-RNA-Seq:
+# Install the EXACT GDC reference resources used by pRCC-TREAT-RNA-Seq:
 #   - GRCh38.d1.vd1 genome FASTA
 #   - GENCODE v36 annotation GTF
 #   - GDC-built STAR 2.7.5c index (sjdbOverhang 100)

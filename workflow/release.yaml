@@ -2,6 +2,7 @@
 #
 # Run configurations must not override these values. Update pipeline_release only
 # as part of the documented release process and qualification decision.
-pipeline_name: pRCC-RNA-Seq
-pipeline_release: development
+pipeline_name: pRCC-TREAT-RNA-Seq
+repository_slug: prcc-treat-rnaseq
+pipeline_release: 1.0.0-rc.1
 output_contract: 1

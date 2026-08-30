@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #==============================================================================#
-# Verify an installed pRCC-RNA-Seq GDC reference bundle.
+# Verify an installed pRCC-TREAT-RNA-Seq GDC reference bundle.
 #
 # Default verification is intentionally fast: it checks the expected FASTA/GTF
 # and the essential files in the pre-built GDC STAR index. Normal workflow

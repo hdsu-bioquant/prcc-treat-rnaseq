@@ -1,12 +1,14 @@
 # Changelog
 
-All notable changes to pRCC-RNA-Seq will be documented in this file.
+All notable changes to pRCC-TREAT-RNA-Seq will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and release versions follow [Semantic Versioning](https://semver.org/). Maintainer rules for
 updating this file are defined in [`docs/maintainers/release-policy.md`](docs/maintainers/release-policy.md#changelog-maintenance).
 
 ## [Unreleased]
+
+## [1.0.0-rc.1] - 2026-08-30
 
 ### Added
 
@@ -29,6 +31,9 @@ updating this file are defined in [`docs/maintainers/release-policy.md`](docs/ma
 
 ### Changed
 
+- Renamed the pipeline from `pRCC-RNA-Seq` to `pRCC-TREAT-RNA-Seq`; the maintained repository slug is `prcc-treat-rnaseq`.
+- Updated the maintained controller to Snakemake 9.20.0, which restores minute-based interpretation of bare `runtime` values supplied through profiles/CLI.
+- Removed compatibility handling for the unpublished temporary `umitools-1.1.6.sif` development filename; the maintained local image name is `umitools.sif`.
 - Pipeline release identity is maintained by the repository rather than copied run configuration.
 - Qualification-baseline maintenance is explicit and separated from synthetic fixture integrity.
 - Consortium onboarding is organized as a lightweight first-line software installation followed by reference/resource and realistic site qualification.

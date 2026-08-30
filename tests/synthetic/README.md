@@ -1,7 +1,7 @@
 # Synthetic smoke-test fixture
 
 This directory contains a deliberately tiny, fully synthetic RNA-seq fixture for the
-pRCC-RNA-Seq pipeline. It is intended to live in Git and to run quickly during development
+pRCC-TREAT-RNA-Seq pipeline. It is intended to live in Git and to run quickly during development
 and at partner sites. It tests **pipeline routing and the production output contract**, not
 biological realism or GDC-reference compatibility; those belong in `tests/real/`.
 
@@ -62,7 +62,7 @@ require regenerating the synthetic fixture or its integrity manifest.
 From anywhere, run:
 
 ```bash
-bash /path/to/pRCC-RNA-Seq/tests/synthetic/run_test.sh
+bash /path/to/prcc-treat-rnaseq/tests/synthetic/run_test.sh
 ```
 
 The script resolves the repository root automatically and then:
@@ -191,7 +191,7 @@ subset declared by `workflow/config/software_versions.yaml`, writes both
 `results/run/software_versions.tsv` and MultiQC's `*_mqc_versions.yml`, and records the actual
 Snakemake controller version. It does not launch per-container version-probe jobs.
 
-MultiQC 1.21 may still print `custom_content | prcc_rnaseq_qc: Found 1 samples (table)` for
+MultiQC 1.21 may still print `custom_content | prcc_treat_rnaseq_qc: Found 1 samples (table)` for
 the single custom-content table file. That message counts the parsed custom-content object, not
 the library rows; the rendered Library QC Summary and validator require all four library rows.
 

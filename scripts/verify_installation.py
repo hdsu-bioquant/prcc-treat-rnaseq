@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only installation preflight for pRCC-RNA-Seq.
+"""Read-only installation preflight for pRCC-TREAT-RNA-Seq.
 
 The preflight validates a controller environment, a site GDC reference
 installation, required local containers and their expected tool versions, and
@@ -285,8 +285,9 @@ def render_report(checks: list[Check]) -> str:
     release = load_yaml(RELEASE_SPEC)
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     lines = [
-        "pRCC-RNA-Seq installation preflight",
+        "pRCC-TREAT-RNA-Seq installation preflight",
         f"timestamp_utc\t{timestamp}",
+        f"repository_slug\t{release.get('repository_slug', 'unknown')}",
         f"pipeline_release\t{release.get('pipeline_release', 'unknown')}",
         f"output_contract\t{release.get('output_contract', 'unknown')}",
         f"source_revision\t{source_revision()}",

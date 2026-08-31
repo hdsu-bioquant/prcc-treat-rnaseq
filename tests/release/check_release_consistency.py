@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -257,10 +258,61 @@ for path in (ROOT / "docs" / "users" / "consortium").rglob("*.md"):
     if "docs/users/general" in text or "../general" in text:
         fail(f"consortium documentation must not depend on general-user docs: {path.relative_to(ROOT)}")
 
+def git_repository_files() -> list[Path]:
+    """Return tracked and non-ignored untracked files from the Git working tree."""
+    try:
+        inside = subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "--is-inside-work-tree"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        fail("git is required to run the maintainer release-consistency check")
+    except subprocess.CalledProcessError as exc:
+        detail = exc.stderr.strip() or exc.stdout.strip()
+        suffix = f": {detail}" if detail else ""
+        fail(f"release-consistency check must run inside a Git working tree{suffix}")
+
+    if inside.stdout.strip() != "true":
+        fail("release-consistency check must run inside a Git working tree")
+
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(ROOT),
+                "ls-files",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+                "-z",
+            ],
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        detail = exc.stderr.decode(errors="replace").strip()
+        suffix = f": {detail}" if detail else ""
+        fail(f"could not enumerate repository files with git ls-files{suffix}")
+
+    paths: list[Path] = []
+    for raw in result.stdout.split(b"\0"):
+        if not raw:
+            continue
+        rel = Path(raw.decode(errors="surrogateescape"))
+        path = ROOT / rel
+        if path.is_file():
+            paths.append(path)
+    return paths
+
+
 # The pre-RC rename/controller upgrade should be complete outside explicit changelog history.
+# Use Git's view of the repository so ignored local scratch/output files do not create false positives.
 legacy_markers = ("pRCC-RNA-Seq", "prcc-rnaseq", "prcc_rnaseq", "snakemake=9.19.0", "Snakemake 9.19.0")
-for path in ROOT.rglob("*"):
-    if not path.is_file() or path == changelog_path or path == Path(__file__).resolve():
+for path in git_repository_files():
+    if path == changelog_path or path == Path(__file__).resolve():
         continue
     if path.suffix not in {".md", ".py", ".sh", ".yaml", ".yml", ".cff"} and path.name not in {".gitignore", "README.md"}:
         continue

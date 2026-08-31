@@ -13,6 +13,8 @@ UMI-tools methods should not merge them.
 `validation_checksums.sha256` is the maintainer-approved byte-level reference for the
 14 deterministic canonical files emitted by a successful synthetic run. It is intentionally
 **not generated or refreshed by `generate_synthetic_data.py`**. Updating this file is a
-maintenance action that should only happen after intentional deterministic output changes have
-been reviewed and reproduced in clean runs.
+maintainer action that should happen only after every changed deterministic file has been reviewed.
+Metadata/provenance-only differences may be accepted after that review; a new computational-output
+baseline requires the two-clean-run reproducibility procedure in
+`docs/maintainers/qualification-baselines.md`.
 

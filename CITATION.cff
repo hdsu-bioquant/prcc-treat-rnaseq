@@ -18,7 +18,7 @@ authors:
     given-names: "Carl"
     affiliation: "Department of Bioinformatics, Institute of Pharmacy and Molecular Biotechnology (IPMB), Heidelberg University"
 version: "1.0.0-rc.1"
-date-released: 2026-08-30
+date-released: 2026-08-31
 repository-code: "https://github.com/hdsu-bioquant/prcc-treat-rnaseq"
 license: MIT
 keywords:

@@ -8,7 +8,7 @@ updating this file are defined in [`docs/maintainers/release-policy.md`](docs/ma
 
 ## [Unreleased]
 
-## [1.0.0-rc.1] - 2026-08-30
+## [1.0.0-rc.1] - 2026-08-31
 
 ### Added
 
@@ -37,4 +37,5 @@ updating this file are defined in [`docs/maintainers/release-policy.md`](docs/ma
 - Pipeline release identity is maintained by the repository rather than copied run configuration.
 - Qualification-baseline maintenance is explicit and separated from synthetic fixture integrity.
 - Consortium onboarding is organized as a lightweight first-line software installation followed by reference/resource and realistic site qualification.
+- Refreshed the maintained synthetic and realistic deterministic validation baselines for the release-identity rename; only `run/config.yaml` changed and maintained computational/QC checksums remained unchanged.
 

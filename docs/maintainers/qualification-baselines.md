@@ -52,12 +52,16 @@ It intentionally does **not** update `tests/synthetic/checksums.sha256` or
 
 ### Synthetic
 
-After an ordinary synthetic run reports an understood expected-baseline mismatch, run the workflow
-again with the baseline comparison skipped so that all other validation can complete:
+After an ordinary synthetic run reports an understood expected-baseline mismatch, the completed
+workflow output can be validated again while skipping only the frozen-baseline comparison:
 
 ```bash
-bash tests/synthetic/run_test.sh --skip-frozen-baseline
+python tests/synthetic/validate_results.py --skip-frozen-baseline
 ```
+
+This avoids a second workflow execution when the original run completed successfully and failed only
+on comparison with the old expected manifest. If the workflow or any other validation failed,
+investigate that failure instead of entering baseline-update mode.
 
 Preview the candidate baseline:
 

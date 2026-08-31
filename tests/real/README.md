@@ -404,4 +404,3 @@ The actual qualification run directory should normally live outside the maintain
 The persistent site execution profile also normally lives outside the repository (for example under
 `~/.config/snakemake/`).
 
-The old draft `tests/real/manifest.tsv` is superseded by `data_manifest.tsv` and should be removed.

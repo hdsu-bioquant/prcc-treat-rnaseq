@@ -97,15 +97,17 @@ the generated validation manifest is unchanged, no additional reproducibility ru
 ### Maintainer baseline-update mode
 
 When an intentional change is expected to alter deterministic canonical files, first run the normal
-smoke test and inspect any baseline mismatch. After the difference is understood, run:
+smoke test and inspect any baseline mismatch. If that workflow completed successfully and failed
+only on comparison with the old frozen baseline, validate the existing output again with:
 
 ```bash
-bash tests/synthetic/run_test.sh --skip-frozen-baseline
+python tests/synthetic/validate_results.py --skip-frozen-baseline
 ```
 
-This still validates fixture semantics, exact UMI extraction, biological expectations, the output
-contract, package checksums, and the newly generated deterministic validation manifest. It skips
-only comparison with `expected/validation_checksums.sha256`.
+This rechecks fixture semantics, exact UMI extraction, biological expectations, the output contract,
+package checksums, and the newly generated deterministic validation manifest while skipping only
+comparison with `expected/validation_checksums.sha256`. A second workflow execution is unnecessary
+for a reviewed metadata/provenance-only mismatch.
 
 Preview or accept an intentional candidate baseline with:
 
